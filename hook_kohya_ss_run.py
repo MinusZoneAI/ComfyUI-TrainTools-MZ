@@ -1,8 +1,6 @@
 import os
 
-import torch
-os.environ["HTTP_PROXY"] = "http://127.0.0.1:0"
-os.environ["HTTPS_PROXY"] = "http://127.0.0.1:0"
+import torch 
 import logging
 import sys
 import json
@@ -50,11 +48,11 @@ def sample_images(self, *args, **kwargs):
         output["latent_format_version_0"] = torch.tensor([])
         safetensors.torch.save_file(output, noise_pred_latent_path)
 
-    LOG(json.dumps({
+    LOG({
         "type": "sample_images",
         "global_step": global_step,
         "latent": noise_pred_latent_path,
-    }))
+    })
 
 
 def run_lora_sd1_5():
@@ -84,23 +82,15 @@ func_map = {
 }
 
 
-import socket
-sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-udp_port = 0
-
-
-def is_connected():
-    try:
-        sock.getsockopt(socket.SOL_SOCKET, socket.SO_ERROR)
-    except socket.error:
-        return False
-    return True
+import requests
 
 
 def LOG(log):
-    sock.sendto(log.encode(), ('127.0.0.1', udp_port))
-    if not is_connected():
-        raise Exception("Connection closed")
+    # 发送http
+    resp = requests.request("post", f"http://127.0.0.1:{master_port}/log", data=json.dumps(log), headers={
+                            "Content-Type": "application/json"})
+    if resp.status_code != 200:
+        raise Exception(f"LOG failed: {resp.text}")
 
 
 if __name__ == "__main__":
@@ -108,12 +98,12 @@ if __name__ == "__main__":
     parser.add_argument("--sys_path", type=str, default="")
     parser.add_argument("--train_config_json", type=str, default="")
     parser.add_argument("--train_func", type=str, default="")
-    parser.add_argument("--udp_port", type=int, default=0)
+    parser.add_argument("--master_port", type=int, default=0)
     args = parser.parse_args()
 
-    udp_port = args.udp_port
+    master_port = args.master_port
 
-    print(f"udp_port = {udp_port}")
+    print(f"master_port = {master_port}")
 
     sys_path = args.sys_path
     if sys_path != "":

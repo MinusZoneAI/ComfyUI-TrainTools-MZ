@@ -1,10 +1,12 @@
 
+import json
 import os
 import shutil
 import subprocess
 import sys
 import threading
 import time
+import traceback
 from typing import Tuple
 import warnings
 import numpy as np
@@ -688,7 +690,7 @@ class Utils:
         type_str = str(type(model.model.model_config).__name__)
         return "SDXL" in type_str
 
-    def progress_bar(steps,taesd_type="sd1_5"):
+    def progress_bar(steps, taesd_type="sd1_5"):
         class pb:
             if taesd_type == "sd1_5":
                 taesd_decoder_name = "taesd_decoder"
@@ -696,6 +698,7 @@ class Utils:
                 taesd_decoder_name = "taesdxl_decoder"
             latent_rgb_factors = None
             latent_channels = 4
+
             def __init__(self, steps):
                 self.steps = steps
                 self.pbar = comfy.utils.ProgressBar(steps)
@@ -707,7 +710,6 @@ class Utils:
                 return previewer
 
             def update(self, step, total_steps, pil_img=None):
-                print(f"step: {step}/{total_steps}")
                 pil_img_info = ("JPEG", pil_img, 512)
                 if pil_img is None:
                     pil_img_info = None
@@ -721,28 +723,63 @@ class Utils:
 
         return pb(steps)
 
-    def UDP_Server(reader):
+    def get_free_port():
         import socket
-        import threading
-        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        s.bind(("127.0.0.1", 0))
+        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        s.bind(('localhost', 0))
         port = s.getsockname()[1]
+        s.close()
+        return port
 
-        def recv():
-            while True:
-                data, addr = s.recvfrom(1024)
-                if s.fileno() == -1:
-                    break
-                try:
-                    data = str(data, encoding="utf-8")
-                except:
-                    pass
+    def Simple_Server(reader):
+        import threading
+
+        from http.server import HTTPServer, BaseHTTPRequestHandler
+
+        port = Utils.get_free_port()
+        is_running = {"value": True}
+
+        def stop_server():
+            is_running.update({"value": False})
+
+        httpd = None
+
+        class SimpleHTTPRequestHandler(BaseHTTPRequestHandler):
+            def do_POST(self):
+                self.send_response(200)
+                self.end_headers()
+                content_length = int(self.headers['Content-Length'])
+                post_data = self.rfile.read(content_length)
+                data = json.loads(post_data)
                 if reader(data) == False:
-                    break
+                    stop_server()
 
-        threading.Thread(target=recv).start()
+            def log_message(self, format, *args):
+                pass
 
-        return s, port
+        httpd = HTTPServer(('localhost', port), SimpleHTTPRequestHandler)
+
+        def serve_forever():
+            try:
+                print(
+                    "===========================httpd.serve_forever() start=======================================")
+                httpd.serve_forever()
+            except Exception as e:
+                pass
+            print(
+                "===========================httpd.serve_forever() end=======================================")
+        threading.Thread(target=serve_forever).start()
+
+        def check_server_stop(): 
+            while is_running["value"]:
+                print("is_running : ", is_running)
+                time.sleep(1)
+            httpd.shutdown()
+            httpd.server_close()
+
+        threading.Thread(target=check_server_stop).start()
+
+        return stop_server, port
 
 
 MODEL_ZOO = [

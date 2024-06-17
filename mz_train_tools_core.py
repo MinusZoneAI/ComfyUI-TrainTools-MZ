@@ -157,6 +157,8 @@ def MZ_KohyaSSUseConfig_call(args={}):
 
         config["train_config"]["max_train_epochs"] = str(
             args.get("max_train_epochs"))
+        if config["train_config"]["max_train_epochs"] == "0":
+            config["train_config"]["max_train_epochs"] = False
 
         config["train_config"]["save_every_n_epochs"] = str(
             args.get("save_every_n_epochs"))
@@ -286,9 +288,19 @@ def run_hook_kohya_ss_run_file(kohya_ss_tool_dir, train_config, trainer_func):
     previewer = pb.get_previewer()
     import traceback
 
+    import comfy.model_management
+
+    stop_server = None
+
     def log_callback(log):
         try:
-            resp = json.loads(log)
+            comfy.model_management.throw_exception_if_processing_interrupted()
+        except Exception as e:
+            stop_server()
+            return is_running
+
+        try:
+            resp = log
             if resp.get("type") == "sample_images":
                 global_step = resp.get("global_step")
                 latent_path = resp.get("latent")
@@ -303,19 +315,19 @@ def run_hook_kohya_ss_run_file(kohya_ss_tool_dir, train_config, trainer_func):
             print(f"LOG: {log} e: {e} ")
             print(f"stack: {traceback.format_exc()}")
         return is_running
-    server, port = Utils.UDP_Server(log_callback)
+    stop_server, port = Utils.Simple_Server(log_callback)
     try:
         subprocess.run(
             [sys.executable, exec_pyfile, "--sys_path", kohya_ss_tool_dir,
-                "--train_config_json", train_config_str, "--train_func", trainer_func, "--udp_port", str(port)],
+                "--train_config_json", train_config_str, "--train_func", trainer_func, "--master_port", str(port)],
             check=True,
         )
+        stop_server()
         is_running = False
-        server.close()
     except Exception as e:
+        stop_server()
         is_running = False
-        server.close()
-        raise Exception(f"训练失败!!! 具体报错信息请查看控制台 {e}")
+        raise Exception(f"训练失败!!! 具体报错信息请查看控制台...")
 
 
 def MZ_KohyaSSTrain_call(args={}):
@@ -357,15 +369,20 @@ def MZ_KohyaSSTrain_call(args={}):
         pass
     elif use_lora == "latest":
         workspace_lora_dir = os.path.join(workspace_dir, "output")
-        workspace_lora_files = os.listdir(workspace_lora_dir)
-        workspace_lora_files = list(
-            filter(lambda x: x.endswith(".safetensors"), workspace_lora_files))
-        # 排序
-        workspace_lora_files = sorted(
-            workspace_lora_files, key=lambda x: os.path.getctime(x), reverse=True)
-        if len(workspace_lora_files) > 0:
-            use_lora = os.path.join(
-                workspace_lora_dir, workspace_lora_files[0])
+        if os.path.exists(workspace_lora_dir):
+            workspace_lora_files = os.listdir(workspace_lora_dir)
+            workspace_lora_files = list(
+                filter(lambda x: x.endswith(".safetensors"), workspace_lora_files))
+            workspace_lora_files = list(
+                map(lambda x: os.path.join(workspace_lora_dir, x), workspace_lora_files))
+            # 排序
+            workspace_lora_files = sorted(
+                workspace_lora_files, key=lambda x: os.path.getctime(x), reverse=True)
+            if len(workspace_lora_files) > 0:
+                use_lora = os.path.join(
+                    workspace_lora_dir, workspace_lora_files[0])
+        else:
+            use_lora = "empty"
     else:
         pass
 

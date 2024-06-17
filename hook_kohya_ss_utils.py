@@ -69,10 +69,13 @@ def request_wrapper(*args, **kwargs):
 from requests import api
 from requests import Session
 last_request = api.request
+original_session_request = Session.request
 api.request = request_wrapper
 
 
 def Session_request_wrapper(cls, method, url, **kwargs):
+    if url.startswith("http://127.0.0.1"):
+        return original_session_request(cls, method, url, **kwargs)
     # print(f"Session_request_wrapper requesting {url}")
     # print(f"Session_request_wrapper requesting kwargs: {kwargs}")
     if url in source_replacement_table:
