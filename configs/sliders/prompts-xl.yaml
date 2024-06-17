@@ -1,0 +1,9 @@
+- target: "" # 什么词可以消除积极的概念
+  positive: "" # 要擦除的概念
+  unconditional: "" # 与积极概念区别的词
+  neutral: "" # 调节目标的起点
+  action: "enhance" # 擦除或增强
+  guidance_scale: 4
+  resolution: 768
+  dynamic_resolution: true
+  batch_size: 1
