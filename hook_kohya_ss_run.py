@@ -70,7 +70,6 @@ def run_lora_sd1_5():
 
 def run_lora_sdxl():
     hook_kohya_ss_utils.hook_kohya_ss()
-    import hook_kohya_ss_utils
     import sdxl_train_network
     sdxl_train_network.SdxlNetworkTrainer.sample_images = sample_images
     trainer = sdxl_train_network.SdxlNetworkTrainer()

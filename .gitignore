@@ -164,3 +164,10 @@ kohya_ss
 copytoww.bat
 exclude.txt
 .vscode/settings.json
+*.safetensors
+*.ckpt
+*.bin
+*.onnx
+*.msgpack
+*.onnx_data
+configs/models_config/**/*.png

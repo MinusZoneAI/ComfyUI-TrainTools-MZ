@@ -116,12 +116,16 @@ huggingface_hub.file_download._hf_hub_download_to_cache_dir = _hf_hub_download_t
 import diffusers.loaders.single_file
 original_snapshot_download = diffusers.loaders.single_file.snapshot_download
 
-
 def _snapshot_download(repo_id, *args, **kwargs):
+    print(f"_snapshot_download: {repo_id}")
     if repo_id == "stabilityai/stable-diffusion-3-medium-diffusers":
         return os.path.join(
             os.path.dirname(__file__), "configs", "models_config", "stable-diffusion-3-medium-diffusers",)
-    return original_snapshot_download(*args, **kwargs)
+    if repo_id == "runwayml/stable-diffusion-v1-5":
+        return os.path.join(
+            os.path.dirname(__file__), "configs", "models_config", "stable-diffusion-v1-5",)
+    # return original_snapshot_download(repo_id, *args, **kwargs)
+    raise NotImplementedError("_snapshot_download is not supported")
 
 
 diffusers.loaders.single_file.snapshot_download = _snapshot_download

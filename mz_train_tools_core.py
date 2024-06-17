@@ -7,6 +7,7 @@ import shutil
 import sys
 import json
 import subprocess
+import time
 
 import torch
 
@@ -27,17 +28,22 @@ def MZ_KohyaSSInitWorkspace_call(args={}):
 
         # 切换远程分支 git remote set-branches origin 'main'
         branch = args.get("branch", "main")
-        subprocess.run(
-            ["git", "remote", "set-branches", "origin", branch], cwd=kohya_ss_lora_dir, check=True)
-        subprocess.run(
-            ["git", "fetch", "--depth", "1", "origin", branch], cwd=kohya_ss_lora_dir, check=True)
-        
-        # 恢复所有文件
-        subprocess.run(
-            ["git", "checkout", "."], cwd=kohya_ss_lora_dir, check=True)
 
-        subprocess.run(
-            ["git", "checkout", branch], cwd=kohya_ss_lora_dir, check=True)
+        # 查看本地分支是否一致
+        result = subprocess.run(
+            ["git", "branch"], cwd=kohya_ss_lora_dir, stdout=subprocess.PIPE, check=True)
+        if branch.encode() not in result.stdout:
+            subprocess.run(
+                ["git", "remote", "set-branches", "origin", branch], cwd=kohya_ss_lora_dir, check=True)
+            subprocess.run(
+                ["git", "fetch", "--depth", "1", "origin", branch], cwd=kohya_ss_lora_dir, check=True)
+
+            # 恢复所有文件
+            subprocess.run(
+                ["git", "checkout", "."], cwd=kohya_ss_lora_dir, check=True)
+
+            subprocess.run(
+                ["git", "checkout", branch], cwd=kohya_ss_lora_dir, check=True)
 
     except Exception as e:
         raise Exception(f"克隆kohya-ss/sd-scripts或者切换分支时出现异常,详细信息请查看控制台...")
@@ -113,9 +119,9 @@ def MZ_KohyaSSUseConfig_call(args={}):
         raise Exception(f"工作区不存在: {workspace_dir}")
 
     workspace_config_file = os.path.join(workspace_dir, "config.json")
+    train_config_template = args.get("train_config_template", None)
     if not os.path.exists(workspace_config_file):
         train_config_template_dir = args.get("train_config_template_dir", None)
-        train_config_template = args.get("train_config_template", None)
 
         train_config_template_file = os.path.join(
             train_config_template_dir, train_config_template + ".json")
@@ -125,10 +131,11 @@ def MZ_KohyaSSUseConfig_call(args={}):
     config = None
     with open(workspace_config_file, "r", encoding="utf-8") as f:
         config = json.load(f)
-
+        config["metadata"]["train_type"] = train_config_template
         ckpt_name = args.get("ckpt_name", "")
         if ckpt_name == "":
             raise Exception("未选择模型文件(ckpt_name is required)")
+
         ckpt_path = folder_paths.get_full_path("checkpoints", ckpt_name)
 
         config["train_config"]["pretrained_model_name_or_path"] = ckpt_path
@@ -137,12 +144,42 @@ def MZ_KohyaSSUseConfig_call(args={}):
         output_dir = os.path.join(workspace_dir, "output")
         config["train_config"]["output_dir"] = output_dir
 
+        datetime = time.strftime("%Y%m%d_%H%M%S", time.localtime())
         # output_name
-        config["train_config"]["output_name"] = workspace_name
+        config["train_config"]["output_name"] = f"{workspace_name}_{train_config_template}_{datetime}"
 
         dataset_config_path = os.path.join(
             workspace_dir, "dataset.toml")
         config["train_config"]["dataset_config"] = dataset_config_path
+
+        config["train_config"]["max_train_steps"] = str(
+            args.get("max_train_steps"))
+
+        config["train_config"]["max_train_epochs"] = str(
+            args.get("max_train_epochs"))
+
+        config["train_config"]["save_every_n_epochs"] = str(
+            args.get("save_every_n_epochs"))
+
+        config["train_config"]["learning_rate"] = str(
+            args.get("learning_rate"))
+
+        advanced_config = args.get("advanced_config", {}).copy()
+
+        for k in advanced_config:
+            if type(advanced_config[k]) == str and advanced_config[k] == "":
+                if k in config["train_config"]:
+                    del config["train_config"][k]
+                continue
+            elif advanced_config[k] == "enable":
+                advanced_config[k] = True
+            elif advanced_config[k] == "disable":
+                advanced_config[k] = False
+            else:
+                advanced_config[k] = str(advanced_config[k])
+            config["train_config"][k] = advanced_config[k]
+
+        # raise Exception(f"args: {json.dumps(config, indent=4)}")
 
     if config is None:
         raise Exception(f"读取配置文件失败: {workspace_config_file}")
@@ -160,6 +197,8 @@ def config2args(train_parser: argparse.ArgumentParser, config):
     try:
         config_args_list = []
         for key, value in config.items():
+            if value is None:
+                continue
             if type(value) == bool:
                 if value:
                     config_args_list.append(f"--{key}")
@@ -329,9 +368,6 @@ def MZ_KohyaSSTrain_call(args={}):
     elif train_type == "lora_sdxl":
         run_hook_kohya_ss_run_file(kohya_ss_tool_dir, config.get(
             "train_config"), "run_lora_sdxl")
-    elif train_type == "lora_sd3":
-        run_hook_kohya_ss_run_file(kohya_ss_tool_dir, config.get(
-            "train_config"), "run_lora_sd3")
     else:
         raise Exception(
             f"暂时不支持的训练类型: {train_type}")
