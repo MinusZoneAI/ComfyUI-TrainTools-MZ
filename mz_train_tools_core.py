@@ -164,7 +164,7 @@ def MZ_KohyaSSUseConfig_call(args={}):
         config["train_config"]["learning_rate"] = str(
             args.get("learning_rate"))
 
-        advanced_config = args.get("advanced_config", {}).copy()
+        advanced_config = args.get("save_advanced_config", {}).copy()
 
         for k in advanced_config:
             if type(advanced_config[k]) == str and advanced_config[k] == "":
@@ -327,7 +327,6 @@ def MZ_KohyaSSTrain_call(args={}):
 
     # pb.update(1, 1, img)
     # raise Exception(f"MZ_KohyaSSTrain_call: {args}")
-
     train_config = args.get("train_config", {})
     workspace_config = train_config.get("workspace_config", {})
     workspace_name = workspace_config.get("workspace_name", None)
@@ -353,6 +352,35 @@ def MZ_KohyaSSTrain_call(args={}):
         sys.path.append(kohya_ss_tool_dir)
     check_install()
 
+    use_lora = args.get("use_lora", "empty")
+    if use_lora == "empty":
+        pass
+    elif use_lora == "latest":
+        workspace_lora_dir = os.path.join(workspace_dir, "output")
+        workspace_lora_files = os.listdir(workspace_lora_dir)
+        workspace_lora_files = list(
+            filter(lambda x: x.endswith(".safetensors"), workspace_lora_files))
+        # 排序
+        workspace_lora_files = sorted(
+            workspace_lora_files, key=lambda x: os.path.getctime(x), reverse=True)
+        if len(workspace_lora_files) > 0:
+            use_lora = os.path.join(
+                workspace_lora_dir, workspace_lora_files[0])
+    else:
+        pass
+
+    train_config = config.get("train_config")
+    if use_lora != "empty" and os.path.exists(use_lora):
+        train_config["network_weights"] = use_lora
+        train_config["dim_from_weights"] = True
+
+        if "network_dim" in train_config:
+            del train_config["network_dim"]
+        if "network_alpha" in train_config:
+            del train_config["network_alpha"]
+        if "network_dropout" in train_config:
+            del train_config["network_dropout"]
+
     train_type = config.get("metadata").get("train_type")
     # 在ComfyUI中无法运行, 梯度有问题, 原因不清楚
     # import train_network
@@ -363,11 +391,11 @@ def MZ_KohyaSSTrain_call(args={}):
     # return
 
     if train_type == "lora_sd1_5":
-        run_hook_kohya_ss_run_file(kohya_ss_tool_dir, config.get(
-            "train_config"), "run_lora_sd1_5")
+        run_hook_kohya_ss_run_file(
+            kohya_ss_tool_dir, train_config, "run_lora_sd1_5")
     elif train_type == "lora_sdxl":
-        run_hook_kohya_ss_run_file(kohya_ss_tool_dir, config.get(
-            "train_config"), "run_lora_sdxl")
+        run_hook_kohya_ss_run_file(
+            kohya_ss_tool_dir, train_config, "run_lora_sdxl")
     else:
         raise Exception(
             f"暂时不支持的训练类型: {train_type}")

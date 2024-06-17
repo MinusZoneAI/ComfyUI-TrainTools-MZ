@@ -116,6 +116,7 @@ huggingface_hub.file_download._hf_hub_download_to_cache_dir = _hf_hub_download_t
 import diffusers.loaders.single_file
 original_snapshot_download = diffusers.loaders.single_file.snapshot_download
 
+
 def _snapshot_download(repo_id, *args, **kwargs):
     print(f"_snapshot_download: {repo_id}")
     if repo_id == "stabilityai/stable-diffusion-3-medium-diffusers":
@@ -124,6 +125,9 @@ def _snapshot_download(repo_id, *args, **kwargs):
     if repo_id == "runwayml/stable-diffusion-v1-5":
         return os.path.join(
             os.path.dirname(__file__), "configs", "models_config", "stable-diffusion-v1-5",)
+    if repo_id == "stabilityai/stable-diffusion-xl-base-1.0":
+        return os.path.join(
+            os.path.dirname(__file__), "configs", "models_config", "stable-diffusion-xl-base-1.0",)
     # return original_snapshot_download(repo_id, *args, **kwargs)
     raise NotImplementedError("_snapshot_download is not supported")
 
@@ -333,7 +337,6 @@ def _load_target_model(args: argparse.Namespace, weight_dtype, device="cpu", une
         )
         original_unet.load_state_dict(unet.state_dict())
         unet = original_unet
-        unet = unet.train()
         print("U-Net converted to original U-Net")
 
     # VAEを読み込む

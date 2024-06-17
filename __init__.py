@@ -88,7 +88,6 @@ class MZ_KohyaSSUseConfig:
         # 去掉json后缀
         train_config_templates = [os.path.splitext(x)[0]
                                   for x in train_config_templates]
-
         return {
             "required": {
                 "workspace_config": ("MZ_TT_SS_WorkspaceConfig",),
@@ -101,7 +100,7 @@ class MZ_KohyaSSUseConfig:
                 "learning_rate": ("STRING", {"default": "1e-5"}),
             },
             "optional": {
-                "advanced_config": ("MZ_TT_SS_AdvConfig",),
+                "save_advanced_config": ("MZ_TT_SS_AdvConfig",),
             }
         }
 
@@ -204,9 +203,46 @@ class MZ_KohyaSSTrain:
 
     @classmethod
     def INPUT_TYPES(s):
+        loras = [
+            "latest",
+            "empty",
+        ]
+
+        workspaces_dir = os.path.join(
+            folder_paths.output_directory, "mz_train_workspaces")
+
+        # 使用walk查询所有的workspace中的所有lora模型,lora存放在每个workspace的output目录下
+        workspaces_loras = []
+        for root, dirs, files in os.walk(workspaces_dir): 
+            if root.endswith("output"):
+                for file in files:
+                    if file.endswith(".safetensors"):
+                        workspaces_loras.append(
+                            os.path.join(root, file)
+                        )
+
+        # 按创建时间排序
+        workspaces_loras = sorted(
+            workspaces_loras, key=lambda x: os.path.getctime(x), reverse=True)
+
+        comfyui_full_loras = []
+        comfyui_loras = folder_paths.get_filename_list("loras")
+        for lora in comfyui_loras:
+            lora_path = folder_paths.get_full_path("loras", lora)
+            comfyui_full_loras.append(lora_path)
+
+        # 按创建时间排序
+        comfyui_full_loras = sorted(
+            comfyui_full_loras, key=lambda x: os.path.getctime(x), reverse=True)
+
+        loras = loras + workspaces_loras + comfyui_full_loras
+
         return {
             "required": {
                 "train_config": ("MZ_TT_SS_TrainConfig",),
+            },
+            "optional": {
+                "use_lora": (loras, {"default": "latest"}),
             },
         }
 
