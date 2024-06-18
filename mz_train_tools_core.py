@@ -236,6 +236,7 @@ import logging
 
 
 def generate_toml_config(output_path, enable_bucket=True, resolution=512, batch_size=1, image_dir=None, caption_extension=".caption", num_repeats=10, ):
+    check_install()
     import toml
     config = {
         'general': {
