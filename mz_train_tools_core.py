@@ -33,9 +33,9 @@ def MZ_KohyaSSInitWorkspace_call(args={}):
         result = subprocess.run(
             ["git", "branch"], cwd=kohya_ss_lora_dir, stdout=subprocess.PIPE, check=True)
 
-        print(f"current branch: {result.stdout}")
+        print(f"current branch: {result.stdout.decode()}")
 
-        if branch.encode() not in result.stdout:
+        if branch not in result.stdout.decode():
             subprocess.run(
                 ["git", "remote", "set-branches", "origin", branch], cwd=kohya_ss_lora_dir, check=True)
             subprocess.run(
