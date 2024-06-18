@@ -24,7 +24,7 @@ class MZ_KohyaSSInitWorkspace:
         return {
             "required": {
                 "workspace_name": ("STRING", {"default": ""}),
-                "branch": ("STRING", {"default": "71e2c91"}),
+                "branch": ("STRING", {"default": "71e2c91330a9d866ec05cdd10584bbb962896a99"}),
                 "seed": ("INT", {"default": 0}),
             },
         }
