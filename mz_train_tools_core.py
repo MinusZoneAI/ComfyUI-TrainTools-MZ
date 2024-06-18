@@ -235,6 +235,10 @@ def check_install():
         import diffusers
     except ImportError:
         os.system(f"{sys.executable} -m pip install diffusers")
+    try:
+        import accelerate
+    except ImportError:
+        os.system(f"{sys.executable} -m pip install accelerate")
 import logging
 
 
