@@ -231,7 +231,10 @@ def check_install():
     except ImportError:
         os.system(f"{sys.executable} -m pip install voluptuous")
 
-
+    try:
+        import diffusers
+    except ImportError:
+        os.system(f"{sys.executable} -m pip install diffusers")
 import logging
 
 
