@@ -348,3 +348,72 @@ def _load_target_model(args: argparse.Namespace, weight_dtype, device="cpu", une
         print("additional VAE loaded")
 
     return text_encoder, vae, unet, load_stable_diffusion_format
+
+
+def generate_image(pipe_class, cmd_args, accelerator, vae, tokenizer, text_encoder, unet, epoch, prompt_dict_list):
+    import library.train_util
+
+    # for multi gpu distributed inference. this is a singleton, so it's safe to use it here
+    distributed_state = library.train_util.PartialState()
+    org_vae_device = vae.device  # CPUにいるはず
+    vae.to(distributed_state.device)
+    unet = accelerator.unwrap_model(unet)
+
+    if isinstance(text_encoder, (list, tuple)):
+        text_encoder = [accelerator.unwrap_model(te) for te in text_encoder]
+    else:
+        text_encoder = accelerator.unwrap_model(text_encoder)
+
+    default_scheduler = library.train_util.get_my_scheduler(
+        sample_sampler="k_euler",
+        v_parameterization=cmd_args.v_parameterization,
+    )
+
+    pipeline = pipe_class(
+        text_encoder=text_encoder,
+        vae=vae,
+        unet=unet,
+        tokenizer=tokenizer,
+        scheduler=default_scheduler,
+        safety_checker=None,
+        feature_extractor=None,
+        requires_safety_checker=False,
+        clip_skip=cmd_args.clip_skip,
+    )
+    pipeline.to(distributed_state.device)
+
+    workspaces_dir = os.path.dirname(cmd_args.dataset_config)
+    sample_images_path = os.path.join(
+        workspaces_dir, "sample_images")
+
+    os.makedirs(sample_images_path, exist_ok=True)
+
+    lora_output_name = cmd_args.output_name
+
+    # 画像生成
+    save_dir = sample_images_path
+    prompt_replacement = None
+    steps = 0
+    controlnet = None
+
+    # save random state to restore later
+    rng_state = torch.get_rng_state()
+    cuda_rng_state = None
+    try:
+        cuda_rng_state = torch.cuda.get_rng_state() if torch.cuda.is_available() else None
+    except Exception:
+        pass
+
+    with torch.no_grad():
+        for prompt_dict in prompt_dict_list:
+            library.train_util.sample_image_inference(
+                accelerator, cmd_args, pipeline, save_dir, prompt_dict, epoch, steps, prompt_replacement, controlnet=controlnet
+            )
+
+    del pipeline
+    library.train_util.clean_memory_on_device(accelerator.device)
+
+    torch.set_rng_state(rng_state)
+    if cuda_rng_state is not None:
+        torch.cuda.set_rng_state(cuda_rng_state)
+    vae.to(org_vae_device)

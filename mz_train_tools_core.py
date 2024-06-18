@@ -260,17 +260,50 @@ def generate_toml_config(output_path, enable_bucket=True, resolution=512, batch_
         toml.dump(config, f)
 
 
-def latent2image(previews, latent_file):
-    samples = nodes.LoadLatent().load(latent_file)[0]
-    with torch.no_grad():
+# def latent2image(previews, latent_file):
+#     samples = nodes.LoadLatent().load(latent_file)[0]
+#     with torch.no_grad():
 
-        samples = samples["samples"].to("cuda")
-        preview_bytes = previews.decode_latent_to_preview_image(
-            "", samples)
-    return preview_bytes[1]
+#         samples = samples["samples"].to("cuda")
+#         preview_bytes = previews.decode_latent_to_preview_image(
+#             "", samples)
+#     return preview_bytes[1]
+
+from PIL import Image
 
 
-def run_hook_kohya_ss_run_file(kohya_ss_tool_dir, train_config, trainer_func):
+def get_sample_images(train_config):
+    output_name = train_config.get("output_name")
+    sample_images_dir = os.path.join(
+        os.path.dirname(train_config.get("dataset_config")), "sample_images"
+    )
+    pil_images = []
+    pre_render_texts_x = []
+    if os.path.exists(sample_images_dir):
+        image_files = os.listdir(sample_images_dir)
+        image_files = list(
+            filter(lambda x: x.endswith(".png"), image_files))
+        # 筛选 output_name 前缀
+        image_files = list(
+            filter(lambda x: x.startswith(output_name), image_files))
+
+        image_files = sorted(image_files, key=lambda x: x)
+
+        for image_file in image_files:
+            pil_image = Image.open(os.path.join(sample_images_dir, image_file))
+            pil_images.append([pil_image])
+            pre_render_texts_x.append(image_file)
+    result = Utils.xy_image(
+        pre_render_images=pil_images,
+        pre_render_texts_x=pre_render_texts_x,
+        pre_render_texts_y=[""],
+    )
+    return result
+
+
+def run_hook_kohya_ss_run_file(kohya_ss_tool_dir, train_config, trainer_func, other_config={}):
+
+    other_config_str = json.dumps(other_config)
 
     exec_pyfile = os.path.join(os.path.dirname(
         __file__), "hook_kohya_ss_run.py",)
@@ -303,12 +336,12 @@ def run_hook_kohya_ss_run_file(kohya_ss_tool_dir, train_config, trainer_func):
             resp = log
             if resp.get("type") == "sample_images":
                 global_step = resp.get("global_step")
-                latent_path = resp.get("latent")
-                preview_bytes = None
-                if latent_path is not None:
-                    preview_bytes = latent2image(previewer, latent_path)
+                xy_img = get_sample_images(train_config)
+
+                max_side = max(xy_img.width, xy_img.height)
+
                 pb.update(
-                    int(global_step), int(max_train_steps), preview_bytes)
+                    int(global_step), int(max_train_steps), ("JPEG", xy_img, max_side))
             else:
                 print(f"LOG: {log}")
         except Exception as e:
@@ -319,7 +352,7 @@ def run_hook_kohya_ss_run_file(kohya_ss_tool_dir, train_config, trainer_func):
     try:
         subprocess.run(
             [sys.executable, exec_pyfile, "--sys_path", kohya_ss_tool_dir,
-                "--train_config_json", train_config_str, "--train_func", trainer_func, "--master_port", str(port)],
+                "--train_config_json", train_config_str, "--train_func", trainer_func, "--master_port", str(port), "--other_config_json", other_config_str],
             check=True,
         )
         stop_server()
@@ -364,10 +397,10 @@ def MZ_KohyaSSTrain_call(args={}):
         sys.path.append(kohya_ss_tool_dir)
     check_install()
 
-    use_lora = args.get("use_lora", "empty")
-    if use_lora == "empty":
+    base_lora = args.get("base_lora", "empty")
+    if base_lora == "empty":
         pass
-    elif use_lora == "latest":
+    elif base_lora == "latest":
         workspace_lora_dir = os.path.join(workspace_dir, "output")
         if os.path.exists(workspace_lora_dir):
             workspace_lora_files = os.listdir(workspace_lora_dir)
@@ -379,16 +412,16 @@ def MZ_KohyaSSTrain_call(args={}):
             workspace_lora_files = sorted(
                 workspace_lora_files, key=lambda x: os.path.getctime(x), reverse=True)
             if len(workspace_lora_files) > 0:
-                use_lora = os.path.join(
+                base_lora = os.path.join(
                     workspace_lora_dir, workspace_lora_files[0])
         else:
-            use_lora = "empty"
+            base_lora = "empty"
     else:
         pass
 
     train_config = config.get("train_config")
-    if use_lora != "empty" and os.path.exists(use_lora):
-        train_config["network_weights"] = use_lora
+    if base_lora != "empty" and os.path.exists(base_lora):
+        train_config["network_weights"] = base_lora
         train_config["dim_from_weights"] = True
 
         if "network_dim" in train_config:
@@ -406,13 +439,21 @@ def MZ_KohyaSSTrain_call(args={}):
     # train_args = config2args(train_network.setup_parser(), train_config)
     # trainer.train(train_args)
     # return
+    sample_generate = args.get("sample_generate", "enable")
+    sample_prompt = args.get("sample_prompt", "")
+    if sample_generate == "enable":
+        other_config = {
+            "sample_prompt": sample_prompt,
+        }
+    else:
+        other_config = {}
 
     if train_type == "lora_sd1_5":
         run_hook_kohya_ss_run_file(
-            kohya_ss_tool_dir, train_config, "run_lora_sd1_5")
+            kohya_ss_tool_dir, train_config, "run_lora_sd1_5", other_config)
     elif train_type == "lora_sdxl":
         run_hook_kohya_ss_run_file(
-            kohya_ss_tool_dir, train_config, "run_lora_sdxl")
+            kohya_ss_tool_dir, train_config, "run_lora_sdxl", other_config)
     else:
         raise Exception(
             f"暂时不支持的训练类型: {train_type}")

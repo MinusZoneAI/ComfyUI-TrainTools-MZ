@@ -713,9 +713,10 @@ class Utils:
                 pil_img_info = ("JPEG", pil_img, 512)
                 if pil_img is None:
                     pil_img_info = None
-                if type(pil_img) == Tuple:
+                if type(pil_img) == Tuple or type(pil_img) == list or type(pil_img) == tuple:
                     pil_img_info = pil_img
                 try:
+                    print("pil_img_info:", type(pil_img), pil_img_info)
                     self.pbar.update_absolute(
                         step, total_steps, pil_img_info)
                 except Exception as e:
@@ -770,9 +771,9 @@ class Utils:
                 "===========================httpd.serve_forever() end=======================================")
         threading.Thread(target=serve_forever).start()
 
-        def check_server_stop(): 
+        def check_server_stop():
             while is_running["value"]:
-                print("is_running : ", is_running)
+                # print("is_running : ", is_running)
                 time.sleep(1)
             httpd.shutdown()
             httpd.server_close()
@@ -781,42 +782,132 @@ class Utils:
 
         return stop_server, port
 
+    def xy_image(pre_render_images, pre_render_texts_x, pre_render_texts_y):
+        # 去掉pre_render_texts_x中所有相同字符串前缀
 
-MODEL_ZOO = [
-    {
-        "model": "ip-adapter-plus_sd15",
-        "find_path": [
-            "ipadapter",
-        ],
-        "file_path": "ipadapter/ip-adapter-plus_sd15.safetensors",
-        "url": "https://www.modelscope.cn/api/v1/models/dannysun85/IP-Adapter/repo?Revision=master&FilePath=models%2Fip-adapter-plus_sd15.safetensors",
-        "SHA256": "a1c250be40455cc61a43da1201ec3f1edaea71214865fb47f57927e06cbe4996",
-    },
-    {
-        "model": "ip-adapter-plus_sdxl_vit-h",
-        "find_path": [
-            "ipadapter",
-        ],
-        "file_path": "ipadapter/ip-adapter-plus_sdxl_vit-h.safetensors",
-        "url": "https://www.modelscope.cn/api/v1/models/dannysun85/IP-Adapter/repo?Revision=master&FilePath=sdxl_models%2Fip-adapter-plus_sdxl_vit-h.safetensors",
-        "SHA256": "a1c250be40455cc61a43da1201ec3f1edaea71214865fb47f57927e06cbe4996",
-    },
-    {
-        "model": "CLIP-ViT-H-14-laion2B-s32B-b79K",
-        "find_path": [
-            "clip_vision",
-        ],
-        "file_path": "clip_vision/CLIP-ViT-H-14-laion2B-s32B-b79K.safetensors",
-        "url": "https://www.modelscope.cn/api/v1/models/dannysun85/IP-Adapter/repo?Revision=master&FilePath=models%2Fimage_encoder%2Fmodel.safetensors",
-        "SHA256": "6ca9667da1ca9e0b0f75e46bb030f7e011f44f86cbfb8d5a36590fcd7507b030",
-    },
-    {
-        "model": "iclight_sd15_fc",
-        "find_path": [
-            "unet",
-        ],
-        "file_path": "unet/iclight_sd15_fc.safetensors",
-        "url": "https://www.modelscope.cn/api/v1/models/AI-ModelScope/ic-light/repo?Revision=master&FilePath=iclight_sd15_fc.safetensors",
-        "SHA256": "a033fbaaa2f3f7859fa6a4477ee63ebbf9c116bf3569d5811856d2807f3468cd",
-    },
-]
+        def get_common_prefix(pre_render_texts_x):
+            common_prefix = ""
+            for i in range(len(pre_render_texts_x[0])):
+                c = pre_render_texts_x[0][i]
+                for j in range(len(pre_render_texts_x)):
+                    if pre_render_texts_x[j][i] != c:
+                        return common_prefix
+                else:
+                    common_prefix += c
+
+            return common_prefix
+        
+        common_prefix = get_common_prefix(pre_render_texts_x)
+
+        if common_prefix != "":
+            pre_render_texts_x = [x.replace(common_prefix, "") for x in pre_render_texts_x]
+
+        x_enable_num = len(pre_render_images)
+        y_enable_num = len(pre_render_images[0])
+        max_width = 0
+        max_height = 0
+        for x in range(0, len(pre_render_images)):
+            for y in range(0, len(pre_render_images[x])):
+                if pre_render_images[x][y].width < 512:
+                    org_width = pre_render_images[x][y].width
+                    org_height = pre_render_images[x][y].height
+                    pre_render_images[x][y] = pre_render_images[x][y].resize(
+                        (512, int(org_height * 512 / org_width)))
+
+                if pre_render_images[x][y].width > max_width:
+                    max_width = pre_render_images[x][y].width
+                if pre_render_images[x][y].height > max_height:
+                    max_height = pre_render_images[x][y].height
+
+        image_xy_canvas = Image.new(
+            "RGB", (max_width * x_enable_num, max_height * y_enable_num))
+        for i in range(x_enable_num):
+            for j in range(y_enable_num):
+                image_xy_canvas.paste(
+                    pre_render_images[i][j], (max_width * i, max_height * j))
+
+        # draw axis
+        from PIL import ImageDraw, ImageFont
+        import PIL
+        # 获取PIL版本号
+        pil_version = PIL.__version__
+        if pil_version >= "10.0.0":
+            def textsize(self, text, font):
+                left, top, right, bottom = self.textbbox((0, 0), text, font)
+                return right - left, bottom - top
+            ImageDraw.ImageDraw.textsize = textsize
+
+        full_padding = 260
+
+        full_canvas_width = max_width * x_enable_num + full_padding * 2
+        full_canvas_height = max_height * y_enable_num + full_padding * 2
+        full_canvas = Image.new(
+            "RGB", (full_canvas_width, full_canvas_height), "white")
+
+        full_canvas.paste(image_xy_canvas, (full_padding, full_padding))
+
+        draw = ImageDraw.Draw(full_canvas)
+
+        # top
+        draw.line((full_padding, full_padding, full_canvas_width - full_padding,
+                  full_padding), fill="black", width=4)
+
+        # left
+        draw.line((full_padding, full_padding, full_padding,
+                  full_canvas_height - full_padding), fill="black", width=4)
+
+        # bottom
+        draw.line((full_padding, full_canvas_height - full_padding, full_canvas_width - full_padding,
+                   full_canvas_height - full_padding), fill="black", width=4)
+
+        # right
+        draw.line((full_canvas_width - full_padding, full_padding, full_canvas_width - full_padding,
+                   full_canvas_height - full_padding), fill="black", width=4)
+
+        font_fullpath = Utils.download_model(
+            {
+                "url": "https://www.modelscope.cn/api/v1/models/wailovet/MinusZoneAIModels/repo?Revision=master&FilePath=font%2FAlibabaPuHuiTi-2-75-SemiBold.ttf",
+                "output": "font/AlibabaPuHuiTi-2-75-SemiBold.ttf",
+            }
+        )
+        if os.path.exists(font_fullpath):
+            font = ImageFont.truetype(font_fullpath, size=32,)
+        else:
+            font = ImageFont.load_default()
+        for i in range(x_enable_num):
+            textwidth, textheight = draw.textsize(
+                pre_render_texts_x[i], font)
+            offset_x = max_width * i + full_padding + \
+                ((max_width - textwidth) // 2)
+            offset_y = full_padding - textheight - 24
+
+            draw.text((offset_x, offset_y),
+                      pre_render_texts_x[i], font=font, fill="black")
+
+        for j in range(y_enable_num):
+            textwidth, textheight = draw.textsize(
+                pre_render_texts_y[j], font)
+
+            label_text = pre_render_texts_y[j]
+
+            def is_exceed_width(t):
+                textwidth, _ = draw.textsize(
+                    t, font)
+                return textwidth > max_width - 24
+
+            if textwidth > full_padding - 24:
+                # 超过宽度就换行
+                label_text = ""
+                for c in pre_render_texts_y[j]:
+                    if is_exceed_width(label_text + c):
+                        break
+                    label_text += c
+
+            offset_x = full_padding - textwidth - 24
+            offset_y = max_height * j + full_padding + \
+                ((max_height - textheight) // 2)
+
+            draw.text((offset_x, offset_y),
+                      label_text, font=font, fill="black")
+
+        return full_canvas

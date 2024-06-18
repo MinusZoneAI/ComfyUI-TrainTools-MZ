@@ -24,7 +24,7 @@ class MZ_KohyaSSInitWorkspace:
         return {
             "required": {
                 "workspace_name": ("STRING", {"default": ""}),
-                "branch": ("STRING", {"default": "main"}),
+                "branch": ("STRING", {"default": "71e2c91"}),
                 "seed": ("INT", {"default": 0}),
             },
         }
@@ -213,7 +213,7 @@ class MZ_KohyaSSTrain:
 
         # 使用walk查询所有的workspace中的所有lora模型,lora存放在每个workspace的output目录下
         workspaces_loras = []
-        for root, dirs, files in os.walk(workspaces_dir): 
+        for root, dirs, files in os.walk(workspaces_dir):
             if root.endswith("output"):
                 for file in files:
                     if file.endswith(".safetensors"):
@@ -240,14 +240,16 @@ class MZ_KohyaSSTrain:
         return {
             "required": {
                 "train_config": ("MZ_TT_SS_TrainConfig",),
+                "base_lora": (loras, {"default": "latest"}),
+                "sample_generate": (["enable", "disable"], {"default": "enable"}),
+                "sample_prompt": ("STRING", {"default:": "", "dynamicPrompts": True, "multiline": True}),
             },
             "optional": {
-                "use_lora": (loras, {"default": "latest"}),
             },
         }
 
-    RETURN_TYPES = (f"STRING",)
-    RETURN_NAMES = ("train_output_dir",)
+    RETURN_TYPES = ()
+    RETURN_NAMES = ()
     OUTPUT_NODE = True
     FUNCTION = "start"
     CATEGORY = CATEGORY_NAME
