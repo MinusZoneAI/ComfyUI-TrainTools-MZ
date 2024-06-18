@@ -30,12 +30,14 @@ def MZ_KohyaSSInitWorkspace_call(args={}):
         branch = args.get("branch", "main")
 
         # 查看本地分支是否一致
+        short_result = subprocess.run(
+            ["git", "rev-parse", "--abbrev-ref", "HEAD"], cwd=kohya_ss_lora_dir, stdout=subprocess.PIPE, check=True)
         result = subprocess.run(
-            ["git", "branch"], cwd=kohya_ss_lora_dir, stdout=subprocess.PIPE, check=True)
+            ["git", "rev-parse", "HEAD"], cwd=kohya_ss_lora_dir, stdout=subprocess.PIPE, check=True)
+        print(
+            f"current branch: {short_result.stdout.decode()} {result.stdout.decode()}")
 
-        print(f"current branch: {result.stdout.decode()}")
-
-        if branch not in result.stdout.decode():
+        if branch != result.stdout.decode() and branch != short_result.stdout.decode():
             subprocess.run(
                 ["git", "remote", "set-branches", "origin", branch], cwd=kohya_ss_lora_dir, check=True)
             subprocess.run(
