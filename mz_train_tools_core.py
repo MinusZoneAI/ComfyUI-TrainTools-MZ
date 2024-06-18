@@ -32,6 +32,9 @@ def MZ_KohyaSSInitWorkspace_call(args={}):
         # 查看本地分支是否一致
         result = subprocess.run(
             ["git", "branch"], cwd=kohya_ss_lora_dir, stdout=subprocess.PIPE, check=True)
+
+        print(f"current branch: {result.stdout}")
+
         if branch.encode() not in result.stdout:
             subprocess.run(
                 ["git", "remote", "set-branches", "origin", branch], cwd=kohya_ss_lora_dir, check=True)
@@ -239,6 +242,8 @@ def check_install():
         import accelerate
     except ImportError:
         os.system(f"{sys.executable} -m pip install accelerate")
+
+
 import logging
 
 

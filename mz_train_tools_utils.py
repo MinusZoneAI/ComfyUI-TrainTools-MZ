@@ -796,11 +796,12 @@ class Utils:
                     common_prefix += c
 
             return common_prefix
-        
+
         common_prefix = get_common_prefix(pre_render_texts_x)
 
         if common_prefix != "":
-            pre_render_texts_x = [x.replace(common_prefix, "") for x in pre_render_texts_x]
+            pre_render_texts_x = [
+                x.replace(common_prefix, "") for x in pre_render_texts_x]
 
         x_enable_num = len(pre_render_images)
         y_enable_num = len(pre_render_images[0])
