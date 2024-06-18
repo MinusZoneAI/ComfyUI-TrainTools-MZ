@@ -716,7 +716,7 @@ class Utils:
                 if type(pil_img) == Tuple or type(pil_img) == list or type(pil_img) == tuple:
                     pil_img_info = pil_img
                 try:
-                    print("pil_img_info:", type(pil_img), pil_img_info)
+                    # print("pil_img_info:", type(pil_img), pil_img_info)
                     self.pbar.update_absolute(
                         step, total_steps, pil_img_info)
                 except Exception as e:
