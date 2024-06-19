@@ -23,8 +23,14 @@ class MZ_KohyaSSInitWorkspace:
     def INPUT_TYPES(s):
         return {
             "required": {
-                "workspace_name": ("STRING", {"default": ""}),
+                "lora_name": ("STRING", {"default": ""}),
                 "branch": ("STRING", {"default": "71e2c91330a9d866ec05cdd10584bbb962896a99"}),
+                "source": ([
+                    "github",
+                    "githubfast",
+                    "521github",
+                    "kkgithub",
+                ], {"default": "none"}),
                 "seed": ("INT", {"default": 0}),
             },
         }
@@ -57,6 +63,10 @@ class MZ_ImagesCopyWorkspace:
                 "num_repeats": ("INT", {"default": 1}),
                 "batch_size": ("INT", {"default": 1}),
                 # "class_name": ("STRING", {"default": "girl", "dynamicPrompts": True}),
+                "force_clear": (["enable", "disable"], {"default": "disable"}),
+                "force_clear_only_images": (["enable", "disable"], {"default": "disable"}),
+                "same_caption_generate": (["enable", "disable"], {"default": "disable"}),
+                "same_caption": ("STRING", {"default": "", "dynamicPrompts": True, "multiline": True}),
             },
         }
 

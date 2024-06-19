@@ -16,11 +16,22 @@ import folder_paths
 import nodes
 
 
+git_accelerate_urls = {
+    "githubfast": "githubfast.com",
+    "521github": "521github.com",
+    "kkgithub": "kkgithub.com",
+}
+
 # 初始化工具仓库和工作区
+
+
 def MZ_KohyaSSInitWorkspace_call(args={}):
     mz_dir = Utils.get_minus_zone_models_path()
     git_url = "https://github.com/kohya-ss/sd-scripts"
+    source = args.get("source", "github")
     kohya_ss_lora_dir = os.path.join(mz_dir, "train_tools", "kohya_ss_lora")
+    if git_accelerate_urls.get(source, None) is not None:
+        git_url = f"https://{git_accelerate_urls[source]}/kohya-ss/sd-scripts"
     try:
         if not os.path.exists(kohya_ss_lora_dir) or not os.path.exists(os.path.join(kohya_ss_lora_dir, ".git")):
             subprocess.run(
@@ -34,8 +45,12 @@ def MZ_KohyaSSInitWorkspace_call(args={}):
             ["git", "rev-parse", "--abbrev-ref", "HEAD"], cwd=kohya_ss_lora_dir, stdout=subprocess.PIPE, check=True)
         result = subprocess.run(
             ["git", "rev-parse", "HEAD"], cwd=kohya_ss_lora_dir, stdout=subprocess.PIPE, check=True)
+
+        short_current_branch = short_result.stdout.decode().strip()
+        long_current_branch = result.stdout.decode().strip()
         print(
-            f"current branch: {short_result.stdout.decode()} {result.stdout.decode()}")
+            f"当前分支(current branch): {long_current_branch}({short_current_branch})")
+        print(f"目标分支(target branch): {branch}")
 
         if branch != result.stdout.decode() and branch != short_result.stdout.decode():
             subprocess.run(
@@ -53,11 +68,13 @@ def MZ_KohyaSSInitWorkspace_call(args={}):
     except Exception as e:
         raise Exception(f"克隆kohya-ss/sd-scripts或者切换分支时出现异常,详细信息请查看控制台...")
 
-    workspace_name = args.get("workspace_name", None)
+    workspace_name = args.get("lora_name", None)
+    workspace_name = workspace_name.strip()
 
     if workspace_name is None or workspace_name == "":
-        raise Exception("工作区名称不能为空(workspace_name is required)")
+        raise Exception("lora名称不能为空(lora_name is required)")
 
+    args["workspace_name"] = workspace_name
     workspaces_dir = os.path.join(
         folder_paths.output_directory, "mz_train_workspaces")
 
