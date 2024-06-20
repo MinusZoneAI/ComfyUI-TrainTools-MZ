@@ -3,8 +3,7 @@
 
 
 # ComfyUI-TrainTools-MZ
-在ComfyUI中进行lora微调的节点,依赖于kohya-ss/sd-scripts等训练工具
- 
+在ComfyUI中进行lora微调的节点,依赖于kohya-ss/sd-scripts等训练工具(Nodes for fine-tuning lora in ComfyUI, dependent on training tools such as kohya-ss/sd-scripts) 
 
 ## Recent changes 
  
