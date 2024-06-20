@@ -18,7 +18,9 @@
 + lora_name(LoRa名称): 用于生成训练文件夹的名称(Used to generate the name of the training folder
 + branch(分支): sd-scripts的分支,默认为当前代码调试时使用的分支(sd-scripts branch, default is the branch used when debugging the current code)
 + source(源): sd-scripts的源,默认为github,下载有问题的话可以切换加速源(sd-scripts source, default is github, if there is a problem with the download, you can switch to the accelerated source)
- 
+
+ ![image](https://github.com/MinusZoneAI/ComfyUI-TrainTools-MZ/assets/5035199/8714d3e3-bc4f-4f99-9c0c-a5ea938b10a9)
+
 
 ### MZ_ImagesCopyWorkspace
 复制图片到训练文件夹中和一些数据集配置(Copy images to the training folder and some dataset configurations)
@@ -29,22 +31,30 @@
 + same_caption(单一标签): 生成相同标签的内容(Generate content with the same label)
 + 其他字段参考: https://github.com/kohya-ss/sd-scripts
 
-![image](https://github.com/MinusZoneAI/ComfyUI-TrainTools-MZ/assets/5035199/b2eb8f78-9314-4860-9248-8c04f87bc470)
+![image](https://github.com/MinusZoneAI/ComfyUI-TrainTools-MZ/assets/5035199/739804dc-d8be-4d42-8b04-f3b4a1bc5e33)
+
 
 ### MZ_KohyaSSUseConfig
 一些基础的训练配置(Some basic training configurations)
 + 没什么特殊的,字段参考: https://github.com/kohya-ss/sd-scripts
+
+![image](https://github.com/MinusZoneAI/ComfyUI-TrainTools-MZ/assets/5035199/9cf82ed6-f3a2-4032-8032-1fd0b0ff6bdd)
 
 
 ### MZ_KohyaSSAdvConfig
 更多的训练配置(More training configurations)
 + 没什么特殊的,字段参考: https://github.com/kohya-ss/sd-scripts
 
+![image](https://github.com/MinusZoneAI/ComfyUI-TrainTools-MZ/assets/5035199/b7a5f904-8357-408a-9c27-4bda4e4f8c85)
+
+
 ### MZ_KohyaSSTrain
 训练主线程(Training main thread)
 + base_lora(基础lora): 加载一个lora模型后进行训练,和sd-scripts中的`network_weights`参数一致,启用时忽略dim/alpha/dropout(Train after loading a lora model, consistent with the `network_weights` parameter in sd-scripts, ignore dim/alpha/dropout when enabled)
 + sample_generate(启用样图生成): 每次保存模型时进行一次示例图片生成,并展示训练过程中每个保存epoch时的示例图片(Enable example image generation each time the model is saved, and display the example image at each saved epoch during training)
 + sample_prompt(提示词): 生成示例图片时使用的提示词(Phrase used when generating example images)
+
+![image](https://github.com/MinusZoneAI/ComfyUI-TrainTools-MZ/assets/5035199/e32d2132-cf0e-46b7-807d-a3160aaeea7d)
 
 
 ## FAQ
