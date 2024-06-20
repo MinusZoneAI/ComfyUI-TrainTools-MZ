@@ -99,17 +99,41 @@ def MZ_ImageSelecter_call(args={}):
     workspace_name = workspace_config.get("workspace_name", None)
 
     if workspace_name is None or workspace_name == "":
-        raise Exception("工作区名称不能为空(workspace_name is required)")
+        raise Exception("lora名称不能为空(lora_name is required)")
 
     workspace_dir = os.path.join(
         folder_paths.output_directory, "mz_train_workspaces", workspace_name)
     train_images_dir = os.path.join(workspace_dir, "train_images")
     os.makedirs(train_images_dir, exist_ok=True)
 
+    force_clear = args.get("force_clear") == "enable"
+    force_clear_only_images = args.get("force_clear_only_images") == "enable"
+    if force_clear:
+        if force_clear_only_images:
+            for file in os.listdir(train_images_dir):
+                if file.endswith(".png") or file.endswith(".jpg"):
+                    os.remove(os.path.join(train_images_dir, file))
+        else:
+            shutil.rmtree(train_images_dir)
+            os.makedirs(train_images_dir, exist_ok=True)
+
+    saved_images_path = []
     for i, pil_image in enumerate(pil_images):
         pil_image = Utils.resize_max(pil_image, resolution, resolution)
         filename = hashlib.md5(pil_image.tobytes()).hexdigest() + ".png"
         pil_image.save(os.path.join(train_images_dir, filename))
+        saved_images_path.append(filename)
+
+    same_caption_generate = args.get("same_caption_generate") == "enable"
+    if same_caption_generate:
+        same_caption = args.get("same_caption").strip()
+        if same_caption != "":
+            # 循环已经保存的图片
+            for i, filename in enumerate(saved_images_path):
+                base_filename = os.path.splitext(filename)[0]
+                caption_filename = base_filename + ".caption"
+                with open(os.path.join(train_images_dir, caption_filename), "w", encoding="utf-8") as f:
+                    f.write(same_caption)
 
     dataset_config_path = os.path.join(workspace_dir, "dataset.toml")
     generate_toml_config(
