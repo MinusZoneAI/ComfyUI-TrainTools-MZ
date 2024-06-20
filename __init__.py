@@ -271,3 +271,46 @@ class MZ_KohyaSSTrain:
 
 NODE_CLASS_MAPPINGS["MZ_KohyaSSTrain"] = MZ_KohyaSSTrain
 NODE_DISPLAY_NAME_MAPPINGS["MZ_KohyaSSTrain"] = f"{AUTHOR_NAME} - KohyaSSTrain"
+
+
+class MZ_LoadImagesFromDirectoryPath:
+    @classmethod
+    def INPUT_TYPES(s):
+        return {
+            "required": {
+                "directory": ("STRING", {"default": "X://path/to/images"}),
+            },
+        }
+
+    RETURN_TYPES = ("IMAGE",)
+    RETURN_NAMES = ("images",)
+
+    FUNCTION = "start"
+
+    CATEGORY = CATEGORY_NAME
+
+    def start(self, **kwargs):
+        from PIL import Image
+        images = []
+        image_dir = kwargs["directory"]
+        if not os.path.exists(image_dir):
+            return (images,)
+        images = os.listdir(image_dir)
+        images = [x for x in images if x.endswith(".png") or x.endswith(".jpg")]
+        images = [os.path.join(image_dir, x) for x in images]
+
+
+        pil_images = []
+        for image in images:
+            pil_images.append(Image.open(image))
+
+        tensor_images = []
+        for pil_image in pil_images:
+            tensor_images.append(Utils.pil2tensor(pil_image))
+
+        return (tensor_images,)
+
+
+NODE_CLASS_MAPPINGS["MZ_LoadImagesFromDirectoryPath"] = MZ_LoadImagesFromDirectoryPath
+NODE_DISPLAY_NAME_MAPPINGS[
+    "MZ_LoadImagesFromDirectoryPath"] = f"{AUTHOR_NAME} - LoadImagesFromDirectoryPath"
