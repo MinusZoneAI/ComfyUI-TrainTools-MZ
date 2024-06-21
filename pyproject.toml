@@ -1,0 +1,14 @@
+[project]
+name = "comfyui-traintools-mz"
+description = "Nodes for fine-tuning lora in ComfyUI, dependent on training tools such as kohya-ss/sd-scripts"
+version = "1.0.0"
+license = "LICENSE"
+
+[project.urls]
+Repository = "https://github.com/MinusZoneAI/ComfyUI-TrainTools-MZ"
+#  Used by Comfy Registry https://comfyregistry.org
+
+[tool.comfy]
+PublisherId = ""
+DisplayName = "ComfyUI-TrainTools-MZ"
+Icon = ""
