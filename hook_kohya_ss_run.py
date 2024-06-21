@@ -112,6 +112,7 @@ def sample_images(self, *args, **kwargs):
     LOG({
         "type": "sample_images",
         "global_step": global_step,
+        "total_steps": cmd_args.max_train_steps,
         # "latent": noise_pred_latent_path,
     })
 
@@ -133,7 +134,7 @@ def run_lora_sd1_5():
     train_args = config2args(train_network.setup_parser(), train_config)
 
     LOG({
-        "type": "start_train", 
+        "type": "start_train",
     })
     trainer.train(train_args)
 
@@ -153,9 +154,9 @@ def run_lora_sdxl():
     trainer = sdxl_train_network.SdxlNetworkTrainer()
     train_config = json.loads(train_config_json)
     train_args = config2args(sdxl_train_network.setup_parser(), train_config)
-    
+
     LOG({
-        "type": "start_train", 
+        "type": "start_train",
     })
     trainer.train(train_args)
 

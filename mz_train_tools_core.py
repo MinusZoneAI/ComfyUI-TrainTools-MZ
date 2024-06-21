@@ -365,6 +365,7 @@ def run_hook_kohya_ss_run_file(kohya_ss_tool_dir, train_config, trainer_func, ot
         __file__), "hook_kohya_ss_run.py",)
     train_config_str = json.dumps(train_config)
     max_train_steps = train_config.get("max_train_steps")
+    max_train_epochs = train_config.get("max_train_epochs")
     is_running = True
 
     taesd_type = "sd1_5"
@@ -372,9 +373,12 @@ def run_hook_kohya_ss_run_file(kohya_ss_tool_dir, train_config, trainer_func, ot
         taesd_type = "sd1_5"
     if trainer_func.find("sdxl") != -1:
         taesd_type = "sdxl"
-    pb = Utils.progress_bar(train_config.get("max_train_steps"), taesd_type)
 
-    previewer = pb.get_previewer()
+
+    
+ 
+    pb = Utils.progress_bar(train_config.get("max_train_steps"), taesd_type)
+ 
     import traceback
 
     import comfy.model_management
@@ -395,9 +399,12 @@ def run_hook_kohya_ss_run_file(kohya_ss_tool_dir, train_config, trainer_func, ot
                 xy_img = get_sample_images(train_config)
 
                 max_side = max(xy_img.width, xy_img.height)
+                # print(f"global_step: {global_step}, max_train_steps: {max_train_steps}")
 
+
+                total_steps = resp.get("total_steps")
                 pb.update(
-                    int(global_step), int(max_train_steps), ("JPEG", xy_img, max_side))
+                    int(global_step), int(total_steps), ("JPEG", xy_img, max_side))
             else:
                 print(f"LOG: {log}")
         except Exception as e:

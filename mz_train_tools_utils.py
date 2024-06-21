@@ -717,6 +717,7 @@ class Utils:
                     pil_img_info = pil_img
                 try:
                     # print("pil_img_info:", type(pil_img), pil_img_info)
+                    # print("step:", step, "total_steps:", total_steps)
                     self.pbar.update_absolute(
                         step, total_steps, pil_img_info)
                 except Exception as e:
