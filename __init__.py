@@ -106,7 +106,7 @@ class MZ_KohyaSSUseConfig:
                 "ckpt_name": (folder_paths.get_filename_list("checkpoints"), ),
                 "max_train_steps": ("INT", {"default": 0, "min": 0, "max": 0x7fffffff}),
                 "max_train_epochs": ("INT", {"default": 100, "min": 0, "max": 0x7fffffff}),
-                "save_every_n_epochs": ("INT", {"default": 20}),
+                "save_every_n_epochs": ("INT", {"default": 10}),
                 "learning_rate": ("STRING", {"default": "1e-5"}),
             },
             "optional": {
