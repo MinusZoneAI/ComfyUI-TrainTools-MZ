@@ -30,7 +30,7 @@ class MZ_KohyaSSInitWorkspace:
                     "githubfast",
                     "521github",
                     "kkgithub",
-                ], {"default": "none"}),
+                ], {"default": "github"}),
                 "seed": ("INT", {"default": 0}),
             },
         }
@@ -104,9 +104,9 @@ class MZ_KohyaSSUseConfig:
                 "workspace_images_dir": ("STRING", {"forceInput": True}),
                 "train_config_template": (train_config_templates,),
                 "ckpt_name": (folder_paths.get_filename_list("checkpoints"), ),
-                "max_train_steps": ("INT", {"default": 300}),
-                "max_train_epochs": ("INT", {"default": 0}),
-                "save_every_n_epochs": ("INT", {"default": 20}),
+                "max_train_steps": ("INT", {"default": 0, "min": 0, "max": 0x7fffffff}),
+                "max_train_epochs": ("INT", {"default": 100, "min": 0, "max": 0x7fffffff}),
+                "save_every_n_epochs": ("INT", {"default": 10}),
                 "learning_rate": ("STRING", {"default": "1e-5"}),
             },
             "optional": {
@@ -209,6 +209,14 @@ NODE_CLASS_MAPPINGS["MZ_KohyaSSAdvConfig"] = MZ_KohyaSSAdvConfig
 NODE_DISPLAY_NAME_MAPPINGS["MZ_KohyaSSAdvConfig"] = f"{AUTHOR_NAME} - KohyaSSAdvConfig"
 
 
+class AlwaysEqualProxy(str):
+    def __eq__(self, _):
+        return True
+
+    def __ne__(self, _):
+        return False
+
+
 class MZ_KohyaSSTrain:
 
     @classmethod
@@ -255,6 +263,7 @@ class MZ_KohyaSSTrain:
                 "sample_prompt": ("STRING", {"default:": "", "dynamicPrompts": True, "multiline": True}),
             },
             "optional": {
+                "has_no_effect": (AlwaysEqualProxy("*"),),
             },
         }
 
@@ -296,9 +305,9 @@ class MZ_LoadImagesFromDirectoryPath:
         if not os.path.exists(image_dir):
             return (images,)
         images = os.listdir(image_dir)
-        images = [x for x in images if x.endswith(".png") or x.endswith(".jpg")]
+        images = [x for x in images if x.endswith(
+            ".png") or x.endswith(".jpg")]
         images = [os.path.join(image_dir, x) for x in images]
-
 
         pil_images = []
         for image in images:
