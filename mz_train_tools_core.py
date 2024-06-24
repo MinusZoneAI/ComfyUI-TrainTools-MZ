@@ -93,6 +93,12 @@ def MZ_ImageSelecter_call(args={}):
     images = args.get("images")
     pil_images = Utils.tensors2pil_list(images)
 
+    conditioning_images = args.get("conditioning_images", None)
+    conditioning_pil_images = None
+    if conditioning_images is not None:
+        conditioning_pil_images = Utils.tensors2pil_list(
+            conditioning_images)
+
     resolution = args.get("resolution", 512)
 
     workspace_config = args.get("workspace_config", {})
@@ -105,6 +111,9 @@ def MZ_ImageSelecter_call(args={}):
         folder_paths.output_directory, "mz_train_workspaces", workspace_name)
     train_images_dir = os.path.join(workspace_dir, "train_images")
     os.makedirs(train_images_dir, exist_ok=True)
+
+    conditioning_images_dir = os.path.join(
+        workspace_dir, "conditioning_images")
 
     force_clear = args.get("force_clear") == "enable"
     force_clear_only_images = args.get("force_clear_only_images") == "enable"
@@ -120,9 +129,15 @@ def MZ_ImageSelecter_call(args={}):
     saved_images_path = []
     for i, pil_image in enumerate(pil_images):
         pil_image = Utils.resize_max(pil_image, resolution, resolution)
+        width, height = pil_image.size
         filename = hashlib.md5(pil_image.tobytes()).hexdigest() + ".png"
         pil_image.save(os.path.join(train_images_dir, filename))
         saved_images_path.append(filename)
+
+        if conditioning_pil_images is not None:
+            os.makedirs(conditioning_images_dir, exist_ok=True)
+            conditioning_pil_images[i].resize((width, height)).save(
+                os.path.join(conditioning_images_dir, filename))
 
     same_caption_generate = args.get("same_caption_generate") == "enable"
     if same_caption_generate:
@@ -136,12 +151,17 @@ def MZ_ImageSelecter_call(args={}):
                     f.write(same_caption)
 
     dataset_config_path = os.path.join(workspace_dir, "dataset.toml")
+
+    if conditioning_images is None:
+        conditioning_images_dir = None
+
     generate_toml_config(
         dataset_config_path,
         enable_bucket=args.get("enable_bucket") == "enable",
         resolution=args.get("resolution"),
         batch_size=args.get("batch_size"),
         image_dir=train_images_dir,
+        conditioning_data_dir=conditioning_images_dir,
         caption_extension=".caption",
         num_repeats=args.get("num_repeats"),
     )
@@ -290,7 +310,7 @@ def check_install():
 import logging
 
 
-def generate_toml_config(output_path, enable_bucket=True, resolution=512, batch_size=1, image_dir=None, caption_extension=".caption", num_repeats=10, ):
+def generate_toml_config(output_path, enable_bucket=True, resolution=512, batch_size=1, image_dir=None, conditioning_data_dir=None, caption_extension=".caption", num_repeats=10, ):
     check_install()
     import toml
     config = {
@@ -304,6 +324,7 @@ def generate_toml_config(output_path, enable_bucket=True, resolution=512, batch_
                 'subsets': [
                     {
                         'image_dir': image_dir,
+                        'conditioning_data_dir': conditioning_data_dir,
                         'caption_extension': caption_extension,
                         'num_repeats': num_repeats,
                     },
@@ -374,11 +395,8 @@ def run_hook_kohya_ss_run_file(kohya_ss_tool_dir, train_config, trainer_func, ot
     if trainer_func.find("sdxl") != -1:
         taesd_type = "sdxl"
 
-
-    
- 
     pb = Utils.progress_bar(train_config.get("max_train_steps"), taesd_type)
- 
+
     import traceback
 
     import comfy.model_management
@@ -400,7 +418,6 @@ def run_hook_kohya_ss_run_file(kohya_ss_tool_dir, train_config, trainer_func, ot
 
                 max_side = max(xy_img.width, xy_img.height)
                 # print(f"global_step: {global_step}, max_train_steps: {max_train_steps}")
-
 
                 total_steps = resp.get("total_steps")
                 pb.update(
@@ -517,6 +534,9 @@ def MZ_KohyaSSTrain_call(args={}):
     elif train_type == "lora_sdxl":
         run_hook_kohya_ss_run_file(
             kohya_ss_tool_dir, train_config, "run_lora_sdxl", other_config)
+    elif train_type == "controlnet_sd1_5":
+        run_hook_kohya_ss_run_file(
+            kohya_ss_tool_dir, train_config, "run_controlnet_sd1_5", other_config)
     else:
         raise Exception(
             f"暂时不支持的训练类型: {train_type}")

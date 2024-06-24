@@ -161,9 +161,51 @@ def run_lora_sdxl():
     trainer.train(train_args)
 
 
+from types import SimpleNamespace
+
+
+class SimpleNamespaceCNWarrper(SimpleNamespace):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.__dict__.update(kwargs)  # or self.__dict__ = kwargs
+        self.__dict__["mid_block_type"] = "UNetMidBlock2DCrossAttn"
+        self.__iter__ = lambda: iter(kwargs.keys())
+    # is not iterable
+
+    def __iter__(self):
+        return iter(self.__dict__.keys())
+    # object has no attribute 'num_attention_heads'
+
+    def __getattr__(self, name):
+        return self.__dict__.get(name, None)
+
+
+def run_controlnet_sd1_5():
+    import types
+    types.SimpleNamespace = SimpleNamespaceCNWarrper
+    hook_kohya_ss_utils.hook_kohya_ss()
+    # 覆盖sample_images生成函数,包括进度条和生成图片功能
+    import train_controlnet
+
+    # 配置对应的pipeline
+    import library.train_util
+    global sample_images_pipe_class
+    sample_images_pipe_class = library.train_util.StableDiffusionLongPromptWeightingPipeline
+
+    train_config = json.loads(train_config_json)
+    train_args = config2args(train_controlnet.setup_parser(), train_config)
+
+    LOG({
+        "type": "start_train",
+    })
+
+    train_controlnet.train(train_args)
+
+
 func_map = {
     "run_lora_sd1_5": run_lora_sd1_5,
     "run_lora_sdxl": run_lora_sdxl,
+    "run_controlnet_sd1_5": run_controlnet_sd1_5,
 }
 
 

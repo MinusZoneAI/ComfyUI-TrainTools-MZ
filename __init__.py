@@ -51,7 +51,6 @@ NODE_DISPLAY_NAME_MAPPINGS["MZ_KohyaSSInitWorkspace"] = f"{AUTHOR_NAME} - KohyaS
 
 
 class MZ_ImagesCopyWorkspace:
-
     @classmethod
     def INPUT_TYPES(s):
         return {
@@ -62,12 +61,17 @@ class MZ_ImagesCopyWorkspace:
                 "resolution": ("INT", {"default": 512}),
                 "num_repeats": ("INT", {"default": 1}),
                 "batch_size": ("INT", {"default": 1}),
-                # "class_name": ("STRING", {"default": "girl", "dynamicPrompts": True}),
                 "force_clear": (["enable", "disable"], {"default": "disable"}),
                 "force_clear_only_images": (["enable", "disable"], {"default": "disable"}),
                 "same_caption_generate": (["enable", "disable"], {"default": "disable"}),
                 "same_caption": ("STRING", {"default": "", "dynamicPrompts": True, "multiline": True}),
+                "description": ("STRING", {"default": """
+如果训练类型是controlnet,必须传入预处理后的图片(conditioning_images)
+""", "multiline": True}),
             },
+            "optional": {
+                "conditioning_images": ("IMAGE",),
+            }
         }
 
     RETURN_TYPES = (f"STRING",)
@@ -323,3 +327,8 @@ class MZ_LoadImagesFromDirectoryPath:
 NODE_CLASS_MAPPINGS["MZ_LoadImagesFromDirectoryPath"] = MZ_LoadImagesFromDirectoryPath
 NODE_DISPLAY_NAME_MAPPINGS[
     "MZ_LoadImagesFromDirectoryPath"] = f"{AUTHOR_NAME} - LoadImagesFromDirectoryPath"
+
+
+# 别名
+NODE_CLASS_MAPPINGS["MZ_DatasetConfig"] = MZ_ImagesCopyWorkspace
+NODE_DISPLAY_NAME_MAPPINGS["MZ_DatasetConfig"] = f"{AUTHOR_NAME} - DatasetConfig"
