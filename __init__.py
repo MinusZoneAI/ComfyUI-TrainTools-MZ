@@ -221,7 +221,7 @@ class AlwaysEqualProxy(str):
         return False
 
 
-class MZ_KohyaSSTrain:
+class MZ_KohyaSSLoraTrain:
 
     @classmethod
     def INPUT_TYPES(s):
@@ -282,8 +282,61 @@ class MZ_KohyaSSTrain:
         return mz_train_tools_core.MZ_KohyaSSTrain_call(kwargs)
 
 
-NODE_CLASS_MAPPINGS["MZ_KohyaSSTrain"] = MZ_KohyaSSTrain
-NODE_DISPLAY_NAME_MAPPINGS["MZ_KohyaSSTrain"] = f"{AUTHOR_NAME} - KohyaSSTrain"
+NODE_CLASS_MAPPINGS["MZ_KohyaSSTrain"] = MZ_KohyaSSLoraTrain
+NODE_DISPLAY_NAME_MAPPINGS[
+    "MZ_KohyaSSTrain"] = f"{AUTHOR_NAME} - KohyaSSTrain(old version)"
+
+NODE_CLASS_MAPPINGS["MZ_KohyaSSLoraTrain"] = MZ_KohyaSSLoraTrain
+NODE_DISPLAY_NAME_MAPPINGS[
+    "MZ_KohyaSSLoraTrain"] = f"{AUTHOR_NAME} - KohyaSSTrain(lora)"
+
+class MZ_KohyaSSControlnetTrain:
+
+    @classmethod
+    def INPUT_TYPES(s):
+        models = [
+            "latest",
+            "empty",
+        ]
+
+        comfyui_full_m_path = []
+        comfyui_basemodels = folder_paths.get_filename_list("controlnet")
+        for b_model in comfyui_basemodels:
+            m_path = folder_paths.get_full_path("controlnet", b_model)
+            comfyui_full_m_path.append(m_path)
+
+        # 按创建时间排序
+        comfyui_full_m_path = sorted(
+            comfyui_full_m_path, key=lambda x: os.path.getctime(x), reverse=True)
+
+        models = models + comfyui_full_m_path
+
+        return {
+            "required": {
+                "train_config": ("MZ_TT_SS_TrainConfig",),
+                "base_controlnet": (models, {"default": "latest"}),
+                "sample_generate": (["enable", "disable"], {"default": "enable"}),
+                "sample_prompt": ("STRING", {"default:": "", "dynamicPrompts": True, "multiline": True}),
+            },
+            "optional": {
+                "has_no_effect": (AlwaysEqualProxy("*"),),
+            },
+        }
+
+    RETURN_TYPES = ()
+    RETURN_NAMES = ()
+    OUTPUT_NODE = True
+    FUNCTION = "start"
+    CATEGORY = CATEGORY_NAME
+
+    def start(self, **kwargs):
+        importlib.reload(mz_train_tools_core)
+        return mz_train_tools_core.MZ_KohyaSSTrain_call(kwargs)
+
+
+NODE_CLASS_MAPPINGS["MZ_KohyaSSControlnetTrain"] = MZ_KohyaSSControlnetTrain
+NODE_DISPLAY_NAME_MAPPINGS[
+    "MZ_KohyaSSControlnetTrain"] = f"{AUTHOR_NAME} - KohyaSSTrain(controlnet)"
 
 
 class MZ_LoadImagesFromDirectoryPath:

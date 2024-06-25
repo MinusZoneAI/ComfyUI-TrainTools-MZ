@@ -511,14 +511,38 @@ def MZ_KohyaSSTrain_call(args={}):
         if "network_dropout" in train_config:
             del train_config["network_dropout"]
 
+    
+
+
+    base_controlnet = args.get("base_controlnet", "empty")
+    if base_controlnet == "empty":
+        pass
+    elif base_controlnet == "latest":
+        workspace_controlnet_dir = os.path.join(workspace_dir, "output")
+        if os.path.exists(workspace_controlnet_dir):
+            workspace_controlnet_files = os.listdir(workspace_controlnet_dir)
+            workspace_controlnet_files = list(
+                filter(lambda x: x.endswith(".safetensors"), workspace_controlnet_files))
+            workspace_controlnet_files = list(
+                map(lambda x: os.path.join(workspace_controlnet_dir, x), workspace_controlnet_files))
+            # 排序
+            workspace_controlnet_files = sorted(
+                workspace_controlnet_files, key=lambda x: os.path.getctime(x), reverse=True)
+            if len(workspace_controlnet_files) > 0:
+                base_controlnet = os.path.join(
+                    workspace_controlnet_dir, workspace_controlnet_files[0])
+        else:
+            base_controlnet = "empty"
+    else:
+        pass
+
+    if base_controlnet != "empty" and os.path.exists(base_controlnet):
+        train_config["controlnet_model_name_or_path"] = base_controlnet 
+
+
     train_type = config.get("metadata").get("train_type")
-    # 在ComfyUI中无法运行, 梯度有问题, 原因不清楚
-    # import train_network
-    # train_network.logger = logging.getLogger()
-    # trainer = train_network.NetworkTrainer()
-    # train_args = config2args(train_network.setup_parser(), train_config)
-    # trainer.train(train_args)
-    # return
+
+
     sample_generate = args.get("sample_generate", "enable")
     sample_prompt = args.get("sample_prompt", "")
     if sample_generate == "enable":
@@ -535,6 +559,15 @@ def MZ_KohyaSSTrain_call(args={}):
         run_hook_kohya_ss_run_file(
             kohya_ss_tool_dir, train_config, "run_lora_sdxl", other_config)
     elif train_type == "controlnet_sd1_5":
+
+        conditioning_images_dir = os.path.join(
+            workspace_dir, "conditioning_images")
+        conditioning_images_onec = ""
+        if os.path.exists(conditioning_images_dir):
+            conditioning_images_onec = os.listdir(conditioning_images_dir)[0]
+            other_config["controlnet_image"] = os.path.join(
+                conditioning_images_dir, conditioning_images_onec)
+        
         run_hook_kohya_ss_run_file(
             kohya_ss_tool_dir, train_config, "run_controlnet_sd1_5", other_config)
     else:
