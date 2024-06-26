@@ -31,8 +31,10 @@ import numpy as np
 import tempfile
 import safetensors.torch
 
-import hook_kohya_ss_utils
-
+try:
+    import hook_kohya_ss_utils
+except:
+    from . import hook_kohya_ss_utils
 
 other_config = {}
 original_save_model = None

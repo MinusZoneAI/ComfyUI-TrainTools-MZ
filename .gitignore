@@ -171,3 +171,4 @@ exclude.txt
 *.msgpack
 *.onnx_data
 configs/models_config/**/*.png
+HunyuanDiT
