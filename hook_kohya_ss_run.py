@@ -31,6 +31,9 @@ import numpy as np
 import tempfile
 import safetensors.torch
 
+
+import sys
+sys.path.append(os.path.dirname(__file__))
 try:
     import hook_kohya_ss_utils
 except:
