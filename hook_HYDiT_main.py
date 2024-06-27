@@ -27,7 +27,7 @@ from transformers import BertModel, BertTokenizer, logging as tf_logging
 # from hydit.constants import VAE_EMA_PATH, TEXT_ENCODER, TOKENIZER, T5_ENCODER
 from hydit.lr_scheduler import WarmupLR
 from hydit.data_loader.arrow_load_stream import TextImageArrowStream
-from hydit.diffusion import create_diffusion 
+from hydit.diffusion import create_diffusion
 from hydit.modules.fp16_layers import Float16Module
 from hydit.modules.models import HUNYUAN_DIT_MODELS
 from hydit.modules.posemb_layers import init_image_posemb
@@ -639,7 +639,7 @@ def Core(args, LOG):
                     gc.collect()
 
                 if (train_steps % args.ckpt_every == 0 or train_steps % args.ckpt_latest_every == 0  # or train_steps == args.max_training_steps
-                    ) and train_steps > 0:
+                        ) and train_steps > 0:
                     logger.info(
                         f"    Saving checkpoint at step {train_steps}.")
                     easy_sample_images(args, vae, text_encoder, tokenizer, model, embedder_t5,
@@ -794,45 +794,44 @@ def easy_sample_images(
 
         if type(sample_config) != list:
             sample_config = [sample_config]
-        
-        with torch.cuda.amp.autocast(enabled=True, dtype=torch.float16, cache_enabled=True):
-            for i, sample in enumerate(sample_config):
-                prompt = sample.get("prompt", "")
-                negative_prompt = sample.get("negative_prompt", "")
-                guidance_scale = sample.get("cfg", guidance_scale)
-                infer_steps = sample.get("steps", infer_steps)
-                width = sample.get("width", target_width)
-                height = sample.get("height", target_height)
 
-                freqs_cis_img = calc_rope(height, width)
-                samples = pipeline(
-                    height=height,
-                    width=width,
-                    prompt=prompt,
-                    negative_prompt=negative_prompt,
-                    num_images_per_prompt=batch_size,
-                    guidance_scale=guidance_scale,
-                    num_inference_steps=infer_steps,
-                    style=style,
-                    return_dict=False,
-                    use_fp16=True,
-                    learn_sigma=args.learn_sigma,
-                    freqs_cis_img=freqs_cis_img,
-                    image_meta_size=image_meta_size,
-                )[0]
+        for i, sample in enumerate(sample_config):
+            prompt = sample.get("prompt", "")
+            negative_prompt = sample.get("negative_prompt", "")
+            guidance_scale = sample.get("cfg", guidance_scale)
+            infer_steps = sample.get("steps", infer_steps)
+            width = sample.get("width", target_width)
+            height = sample.get("height", target_height)
 
-                # print("samples:",type(samples),)
-                # input("Press Enter to continue...")
-                # print("samples:",samples,)
+            freqs_cis_img = calc_rope(height, width)
+            samples = pipeline(
+                height=height,
+                width=width,
+                prompt=prompt,
+                negative_prompt=negative_prompt,
+                num_images_per_prompt=batch_size,
+                guidance_scale=guidance_scale,
+                num_inference_steps=infer_steps,
+                style=style,
+                return_dict=False,
+                use_fp16=True,
+                learn_sigma=args.learn_sigma,
+                freqs_cis_img=freqs_cis_img,
+                image_meta_size=image_meta_size,
+            )[0]
 
-                if type(samples) == list:
-                    pil_image = samples[0]
-                else:
-                    pil_image = samples
+            # print("samples:",type(samples),)
+            # input("Press Enter to continue...")
+            # print("samples:",samples,)
 
-                sample_filename = f"{args.task_flag}_train_steps_{train_steps:07d}.png"
-                sample_filename_path = os.path.join(
-                    sample_images_dir, sample_filename)
-                pil_image.save(sample_filename_path)
+            if type(samples) == list:
+                pil_image = samples[0]
+            else:
+                pil_image = samples
+
+            sample_filename = f"{args.task_flag}_train_steps_{train_steps:07d}.png"
+            sample_filename_path = os.path.join(
+                sample_images_dir, sample_filename)
+            pil_image.save(sample_filename_path)
 
     return None
