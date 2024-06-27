@@ -318,6 +318,13 @@ def check_required():
             sys.executable, "-m", "pip", "install", "diffusers"
         ], check=True)
     
+    try:
+        import transformers
+    except Exception as e:
+        subprocess.run([
+            sys.executable, "-m", "pip", "install", "transformers"
+        ], check=True)
+    
 
 
 def MZ_HYDiTTrain_call(args={}):
