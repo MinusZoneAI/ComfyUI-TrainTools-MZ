@@ -529,7 +529,7 @@ def Core(args, LOG):
 
     if args.use_fp16:
         optimizer = torch.optim.AdamW(
-            model.parameters(), lr=args.lr, weight_decay=args.weight_decay, eps=TRAIN_CONFIG.get("adam_epsilon", 1e-8))
+            model.parameters(), lr=args.lr, weight_decay=args.weight_decay, eps=TRAIN_CONFIG.get("adam_epsilon", 1e-7))
     else:
         optimizer = torch.optim.AdamW(
             model.parameters(), lr=args.lr, weight_decay=args.weight_decay)
@@ -734,7 +734,6 @@ def easy_sample_images(
         sampler='ddpm',
         train_steps=0,
 ):
-
     with torch.no_grad():
 
 
@@ -783,9 +782,7 @@ def easy_sample_images(
                                            safety_checker=None,
                                            requires_safety_checker=False,
                                            embedder_t5=embedder_t5,
-                                           )
-
-        pipeline.to("cuda")
+                                           ).to("cuda")
 
         style = torch.as_tensor([0, 0] * batch_size, device="cuda")
 
@@ -806,21 +803,26 @@ def easy_sample_images(
             height = sample.get("height", target_height)
 
             freqs_cis_img = calc_rope(height, width)
-            samples = pipeline(
-                height=height,
-                width=width,
-                prompt=prompt,
-                negative_prompt=negative_prompt,
-                num_images_per_prompt=batch_size,
-                guidance_scale=guidance_scale,
-                num_inference_steps=infer_steps,
-                style=style,
-                return_dict=False,
-                use_fp16=True,
-                learn_sigma=args.learn_sigma,
-                freqs_cis_img=freqs_cis_img,
-                image_meta_size=image_meta_size,
-            )[0]
+            
+            try:
+                samples = pipeline(
+                    height=height,
+                    width=width,
+                    prompt=prompt,
+                    negative_prompt=negative_prompt,
+                    num_images_per_prompt=batch_size,
+                    guidance_scale=guidance_scale,
+                    num_inference_steps=infer_steps,
+                    style=style,
+                    return_dict=False,
+                    use_fp16=True,
+                    learn_sigma=args.learn_sigma,
+                    freqs_cis_img=freqs_cis_img,
+                    image_meta_size=image_meta_size,
+                )[0]
+            except Exception as e:
+                print(f"Failed to sample images: {e}")
+                continue
 
             # print("samples:",type(samples),)
             # input("Press Enter to continue...")
