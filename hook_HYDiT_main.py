@@ -24,7 +24,6 @@ from torchvision.transforms import functional as TF
 from diffusers.models import AutoencoderKL
 from transformers import BertModel, BertTokenizer, logging as tf_logging
 
-from hydit.config import get_args
 # from hydit.constants import VAE_EMA_PATH, TEXT_ENCODER, TOKENIZER, T5_ENCODER
 from hydit.lr_scheduler import WarmupLR
 from hydit.data_loader.arrow_load_stream import TextImageArrowStream
@@ -440,7 +439,6 @@ def Core(args, LOG):
     model, ema, start_epoch, start_epoch_step, train_steps = model_resume(
         args, model, ema, logger)
 
-
     if args.training_parts == "lora":
         loraconfig = LoraConfig(
             r=args.rank,
@@ -537,14 +535,11 @@ def Core(args, LOG):
         optimizer = torch.optim.AdamW(
             model.parameters(), lr=args.lr, weight_decay=args.weight_decay)
 
-
-
     easy_sample_images(args, vae, text_encoder, tokenizer, model, embedder_t5,
                        target_height=768, target_width=1280, train_steps=0)
     # torch.autograd.set_detect_anomaly(True)
     # with torch.autograd.detect_anomaly():
     with tqdm(total=total_steps, initial=train_steps) as pbar:
-        
 
         # Training loop
         for epoch in range(start_epoch, args.epochs):
@@ -735,7 +730,7 @@ def easy_sample_images(
         sampler='ddpm',
         train_steps=0,
 ):
-    
+
     with torch.no_grad():
 
         from hydit.diffusion.pipeline import StableDiffusionPipeline
@@ -780,17 +775,16 @@ def easy_sample_images(
             rope = get_2d_rotary_pos_embed(head_size, *sub_args)
             return rope
 
-
         pipeline = StableDiffusionPipeline(vae=vae,
-                                        text_encoder=text_encoder,
-                                        tokenizer=tokenizer,
-                                        unet=model,
-                                        scheduler=scheduler,
-                                        feature_extractor=None,
-                                        safety_checker=None,
-                                        requires_safety_checker=False,
-                                        embedder_t5=embedder_t5,
-                                        )
+                                           text_encoder=text_encoder,
+                                           tokenizer=tokenizer,
+                                           unet=model,
+                                           scheduler=scheduler,
+                                           feature_extractor=None,
+                                           safety_checker=None,
+                                           requires_safety_checker=False,
+                                           embedder_t5=embedder_t5,
+                                           )
         pipeline.to("cuda")
 
         style = torch.as_tensor([0, 0] * batch_size, device="cuda")
@@ -837,7 +831,8 @@ def easy_sample_images(
                 pil_image = samples
 
             sample_filename = f"{args.task_flag}_train_steps_{train_steps:07d}.png"
-            sample_filename_path = os.path.join(sample_images_dir, sample_filename)
+            sample_filename_path = os.path.join(
+                sample_images_dir, sample_filename)
             pil_image.save(sample_filename_path)
 
     return None
