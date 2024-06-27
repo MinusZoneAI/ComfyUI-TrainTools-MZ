@@ -784,7 +784,7 @@ def easy_sample_images(
                                            requires_safety_checker=False,
                                            embedder_t5=embedder_t5,
                                            )
-        pipeline._execution_device = "cuda"
+        
         pipeline.to("cuda")
 
         style = torch.as_tensor([0, 0] * batch_size, device="cuda")
