@@ -576,12 +576,12 @@ def Core(args, LOG):
                             with torch.cuda.stream(ema_stream):
                                 ema.update(model.module.module, step=step)
                             torch.cuda.current_stream().wait_stream(ema_stream)
-                    
-                    with torch.cuda.amp.autocast(enabled=args.use_fp16):
+
+                    with torch.cuda.amp.autocast(enabled=True, dtype=torch.float16, cache_enabled=True):
                         loss_dict = diffusion.training_losses(
                             model=model, x_start=latents, model_kwargs=model_kwargs)
 
-                        loss = loss_dict["loss"].mean() 
+                        loss = loss_dict["loss"].mean()
 
                     # print(f"step={step}, loss={loss.item()}")
 
@@ -641,7 +641,7 @@ def Core(args, LOG):
                     gc.collect()
 
                 if (train_steps % args.ckpt_every == 0 or train_steps % args.ckpt_latest_every == 0  # or train_steps == args.max_training_steps
-                        ) and train_steps > 0:
+                    ) and train_steps > 0:
                     logger.info(
                         f"    Saving checkpoint at step {train_steps}.")
                     easy_sample_images(args, vae, text_encoder, tokenizer, model, embedder_t5,
@@ -718,6 +718,8 @@ from diffusers import schedulers
 from hydit.constants import SAMPLER_FACTORY
 from hydit.modules.posemb_layers import get_fill_resize_and_crop, get_2d_rotary_pos_embed
 from hydit.modules.models import HUNYUAN_DIT_CONFIG
+
+
 def easy_sample_images(
         args,
         vae=None,
@@ -736,7 +738,6 @@ def easy_sample_images(
         train_steps=0,
 ):
     with torch.no_grad():
-
 
         workspace_dir = TRAIN_CONFIG.get("workspace_dir")
         sample_config_file = TRAIN_CONFIG.get("sample_config_file", None)
@@ -804,7 +805,7 @@ def easy_sample_images(
             height = sample.get("height", target_height)
 
             freqs_cis_img = calc_rope(height, width)
-            
+
             try:
                 samples = pipeline(
                     height=height,
