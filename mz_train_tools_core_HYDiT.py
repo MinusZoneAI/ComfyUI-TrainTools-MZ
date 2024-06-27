@@ -321,7 +321,7 @@ def check_required():
     packages = [
         "pandas", "pyarrow", "diffusers", "transformers",
         "timm", "peft", "accelerate", "loguru", "einops", "sentencepiece",
-        "polygraphy", "deepspeed"
+        "polygraphy"
     ]
     for package in packages:
         try:

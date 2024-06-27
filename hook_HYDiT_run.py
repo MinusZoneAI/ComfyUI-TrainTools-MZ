@@ -8,9 +8,6 @@ from types import SimpleNamespace
 import torch
 
 
-# python -m torch.distributed.launch  ./hook_HYDi_run.py --sys_path /data/ComfyUI/models/minus_zone_models/train_tools/HunyuanDiT/
-
-
 class SimpleNamespaceCNWarrper(SimpleNamespace):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -64,8 +61,12 @@ if __name__ == "__main__":
         from . import hook_HYDiT_main
     except Exception as e:
         import hook_HYDiT_main
+    try:
+        from . import hook_HYDiT_config
+    except Exception as e:
+        import hook_HYDiT_config
 
-    import hydit.config
+     
 
     def _handle_conflict_error(self, *args, **kwargs):
         pass
@@ -86,7 +87,7 @@ if __name__ == "__main__":
     argparse.ArgumentParser._handle_conflict_error = _handle_conflict_error
     argparse.ArgumentParser._handle_conflict_resolve = _handle_conflict_error
     argparse.ArgumentParser.parse_args = parse_args
-    margs = hydit.config.get_args()
+    margs = hook_HYDiT_config.get_args()
     margs.model = train_config.get("model", "DiT-g/2")
 
     margs.task_flag = train_config.get(
