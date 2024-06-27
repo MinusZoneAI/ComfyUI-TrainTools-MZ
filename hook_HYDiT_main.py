@@ -27,9 +27,7 @@ from transformers import BertModel, BertTokenizer, logging as tf_logging
 # from hydit.constants import VAE_EMA_PATH, TEXT_ENCODER, TOKENIZER, T5_ENCODER
 from hydit.lr_scheduler import WarmupLR
 from hydit.data_loader.arrow_load_stream import TextImageArrowStream
-from hydit.diffusion import create_diffusion
-from hydit.ds_config import deepspeed_config_from_args
-from hydit.modules.ema import EMA
+from hydit.diffusion import create_diffusion 
 from hydit.modules.fp16_layers import Float16Module
 from hydit.modules.models import HUNYUAN_DIT_MODELS
 from hydit.modules.posemb_layers import init_image_posemb
@@ -334,7 +332,7 @@ def Core(args, LOG):
     ema = None
     device = "cuda"
     if args.use_ema:
-        ema = EMA(args, model, device, logger)
+        raise ValueError("Not support EMA model.")
 
     # Setup FP16 main model:
     if args.use_fp16:
