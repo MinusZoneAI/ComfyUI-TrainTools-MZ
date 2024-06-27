@@ -23,33 +23,25 @@ class SimpleNamespaceCNWarrper(SimpleNamespace):
         return self.__dict__.get(name, None)
 
 
-import requests
-
-master_port = 0
-
-
-def LOG(log):
-    if master_port == 0:
-        raise Exception("master_port is 0")
-    # 发送http
-    resp = requests.request("post", f"http://127.0.0.1:{master_port}/log", data=json.dumps(log), headers={
-                            "Content-Type": "application/json"})
-    if resp.status_code != 200:
-        raise Exception(f"LOG failed: {resp.text}")
-
-
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
         conflict_handler='resolve',
     )
     parser.add_argument("--sys_path", type=str, default="")
     parser.add_argument("--train_config_file", type=str, default="")
-    parser.add_argument("--master_port", type=int, default=0)
+    parser.add_argument("--mz_master_port", type=int, default=0)
     args = parser.parse_args()
 
-    master_port = args.master_port
+    master_port = args.mz_master_port
 
     print(f"master_port = {master_port}")
+
+    try:
+        from . import hook_HYDiT_utils
+    except Exception as e:
+        import hook_HYDiT_utils
+
+    hook_HYDiT_utils.set_master_port(master_port)
 
     sys_path = args.sys_path
     if sys_path != "":
@@ -62,11 +54,11 @@ if __name__ == "__main__":
     except Exception as e:
         import hook_HYDiT_main
     try:
-        from . import hook_HYDiT_config
+        from . import hook_HYDiT_main_train_deepspeed
     except Exception as e:
-        import hook_HYDiT_config
+        import hook_HYDiT_main_train_deepspeed
 
-     
+    import hydit.config
 
     def _handle_conflict_error(self, *args, **kwargs):
         pass
@@ -87,7 +79,7 @@ if __name__ == "__main__":
     argparse.ArgumentParser._handle_conflict_error = _handle_conflict_error
     argparse.ArgumentParser._handle_conflict_resolve = _handle_conflict_error
     argparse.ArgumentParser.parse_args = parse_args
-    margs = hook_HYDiT_config.get_args()
+    margs = hydit.config.get_args()
     margs.model = train_config.get("model", "DiT-g/2")
 
     margs.task_flag = train_config.get(
@@ -111,7 +103,9 @@ if __name__ == "__main__":
     margs.target_ratios = train_config.get(
         "target_ratios", ['1:1', '3:4', '4:3', '16:9', '9:16'])
     margs.rope_img = train_config.get("rope_img", "base1024")
+
     margs.image_size = train_config.get("image_size", 1024)
+
     margs.rope_real = train_config.get("rope_real", True)
 
     margs.index_file = train_config.get("index_file", None)
@@ -120,7 +114,9 @@ if __name__ == "__main__":
 
     margs.noise_offset = train_config.get("noise_offset", 0.1)
 
-    margs.log_every = train_config.get("log_every", 10)
+    margs.log_every = train_config.get("log_every", 99999999999999)
+    margs.use_zero_stage = 2
+    margs.deepspeed = True
 
     margs.results_dir = train_config.get("results_dir")
     margs.mse_loss_weight_type = train_config.get(
@@ -130,21 +126,30 @@ if __name__ == "__main__":
         if hasattr(margs, k):
             setattr(margs, k, v)
 
-    hook_HYDiT_main.set_unet_path(
+    hook_HYDiT_utils.set_unet_path(
         train_config.get("unet_path"))
 
-    hook_HYDiT_main.set_vae_ema_path(
+    hook_HYDiT_utils.set_vae_ema_path(
         train_config.get("vae_ema_path"))
 
-    hook_HYDiT_main.set_text_encoder_path(
+    hook_HYDiT_utils.set_text_encoder_path(
         train_config.get("text_encoder_path"))
 
-    hook_HYDiT_main.set_tokenizer_path(
+    hook_HYDiT_utils.set_tokenizer_path(
         train_config.get("tokenizer_path"))
 
-    hook_HYDiT_main.set_t5_encoder_path(
+    hook_HYDiT_utils.set_t5_encoder_path(
         train_config.get("t5_encoder_path"))
 
-    hook_HYDiT_main.set_train_config(train_config)
+    hook_HYDiT_utils.set_train_config(train_config)
 
-    hook_HYDiT_main.Core(margs, LOG)
+    try:
+        # deepspeed/runtime/engine
+        import deepspeed.runtime.engine
+        deepspeed.runtime.engine.DeepSpeedEngine._do_sanity_check = lambda x: None
+    except Exception as e:
+        pass
+
+    if type(margs.image_size) == int:
+        margs.image_size = [margs.image_size, margs.image_size]
+    hook_HYDiT_main_train_deepspeed.Core(margs)

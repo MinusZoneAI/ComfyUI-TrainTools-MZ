@@ -39,37 +39,21 @@ from tqdm import tqdm
 
 
 UNET_PATH = "ckpts/t2i/model/pytorch_model_ema.pt"
-
-
 def set_unet_path(path):
     global UNET_PATH
     UNET_PATH = path
-
-
 VAE_EMA_PATH = "ckpts/t2i/sdxl-vae-fp16-fix"
-
-
 def set_vae_ema_path(path):
     global VAE_EMA_PATH
     VAE_EMA_PATH = path
-
-
 TOKENIZER = "ckpts/t2i/tokenizer"
-
-
 def set_tokenizer_path(path):
     global TOKENIZER
     TOKENIZER = path
-
-
 TEXT_ENCODER = 'ckpts/t2i/clip_text_encoder'
-
-
 def set_text_encoder_path(path):
     global TEXT_ENCODER
     TEXT_ENCODER = path
-
-
 T5_ENCODER = {
     'MT5': 'ckpts/t2i/mt5',
     'attention_mask': True,
@@ -78,20 +62,13 @@ T5_ENCODER = {
     'torch_dtype': torch.float16,
     'learnable_replace': True
 }
-
-
-global TRAIN_CONFIG
-
-
-def set_train_config(train_config):
-    global TRAIN_CONFIG
-    TRAIN_CONFIG = train_config
-
-
 def set_t5_encoder_path(path):
     global T5_ENCODER
     T5_ENCODER['MT5'] = path
-
+global TRAIN_CONFIG
+def set_train_config(train_config):
+    global TRAIN_CONFIG
+    TRAIN_CONFIG = train_config
 
 def create_logger(log_dir=None):
     logger = logging.getLogger(__name__)
