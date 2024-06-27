@@ -195,8 +195,8 @@ def check_model_auto_download(args):
             hunyuan_base_path, download_file)
         os.makedirs(os.path.dirname(download_fullpath), exist_ok=True)
         success_path = Utils.download_file(
-            download_fullpath,
             HYDiT_MODEL[download_file]["url"],
+            download_fullpath,
         )
         if os.path.exists(success_path):
             args["unet_path"] = download_fullpath
@@ -214,8 +214,8 @@ def check_model_auto_download(args):
                 hunyuan_base_path, download_file)
             os.makedirs(os.path.dirname(download_fullpath), exist_ok=True)
             Utils.download_file(
-                download_fullpath,
                 HYDiT_MODEL[download_file]["url"],
+                download_fullpath,
             )
 
         args["vae_ema_path"] = os.path.join(
@@ -234,8 +234,8 @@ def check_model_auto_download(args):
                 hunyuan_base_path, download_file)
             os.makedirs(os.path.dirname(download_fullpath), exist_ok=True)
             Utils.download_file(
-                download_fullpath,
                 HYDiT_MODEL[download_file]["url"],
+                download_fullpath,
             )
 
         args["text_encoder_path"] = os.path.join(
@@ -254,8 +254,8 @@ def check_model_auto_download(args):
                 hunyuan_base_path, download_file)
             os.makedirs(os.path.dirname(download_fullpath), exist_ok=True)
             Utils.download_file(
-                download_fullpath,
                 HYDiT_MODEL[download_file]["url"],
+                download_fullpath,
             )
 
         args["tokenizer_path"] = os.path.join(
@@ -274,8 +274,8 @@ def check_model_auto_download(args):
                 hunyuan_base_path, download_file)
             os.makedirs(os.path.dirname(download_fullpath), exist_ok=True)
             Utils.download_file(
-                download_fullpath,
                 HYDiT_MODEL[download_file]["url"],
+                download_fullpath,
             )
 
         args["t5_encoder_path"] = os.path.join(
