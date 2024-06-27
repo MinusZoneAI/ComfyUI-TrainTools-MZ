@@ -49,10 +49,7 @@ if __name__ == "__main__":
 
     print("HYDi run hook")
 
-    try:
-        from . import hook_HYDiT_main
-    except Exception as e:
-        import hook_HYDiT_main
+
     try:
         from . import hook_HYDiT_main_train_deepspeed
     except Exception as e:
