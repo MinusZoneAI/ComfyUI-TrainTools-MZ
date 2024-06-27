@@ -299,11 +299,18 @@ def check_model_auto_download(args):
 def check_required():
     try:
         import pandas
-
     except Exception as e:
         subprocess.run([
             sys.executable, "-m", "pip", "install", "pandas"
         ], check=True)
+    
+    try:
+        import pyarrow
+    except Exception as e:
+        subprocess.run([
+            sys.executable, "-m", "pip", "install", "pyarrow"
+        ], check=True)
+    
 
 
 def MZ_HYDiTTrain_call(args={}):
