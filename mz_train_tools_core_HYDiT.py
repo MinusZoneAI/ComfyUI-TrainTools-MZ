@@ -110,7 +110,7 @@ def MZ_HYDiTDatasetConfig_call(args={}):
 
     pil_images = Utils.tensors2pil_list(images)
 
-    resolution = args.get("resolution", 512)
+    resolution = args.get("resolution", 1024)
 
     if workspace_name is None or workspace_name == "":
         raise Exception("训练名称不能为空(workspace_name is required)")
@@ -282,13 +282,20 @@ def MZ_HYDiTTrain_call(args={}):
 #                 "tokenizer": (["auto"] + folders, {"default": "auto"}),
 #                 "t5_encoder": (["auto"] + folders, {"default": "auto"}),
 
+    epochs = args.get("epochs", 50)
     output_dir = os.path.join(workspace_dir, "output")
+
+    datetime = time.strftime("%Y%m%d_%H%M%S", time.localtime())
+    output_name = f"{workspace_name}_{datetime}"
+
     train_config.update({
+        "workspace_name": workspace_name,
+        "workspace_dir": workspace_dir,
         "batch_size": args.get("batch_size", 1),
         "target_ratios": train_config.get("target_ratios", ["1:1", "3:4", "4:3", "16:9", "9:16"]),
         "index_file": dataset_mt_json,
-        "epochs": args.get("epochs", 50),
-        "ckpt_every": args.get("save_every_n_epochs", 1),
+        "epochs": epochs,
+        "ckpt_every": int(args.get("ckpt_every")),
         "rope_img": f"base{resolution}",
         "rope_real": args.get("rope_real", "enable") == "enable",
         "image_size": resolution,
@@ -298,11 +305,31 @@ def MZ_HYDiTTrain_call(args={}):
         "tokenizer_path": args.get("tokenizer_path"),
         "t5_encoder_path": args.get("t5_encoder_path"),
         "results_dir": output_dir,
-        "task_flag": args.get("task_flag", workspace_name),
+        "task_flag": output_name,
     })
 
+    sample_generate = args.get("sample_generate", "enable")
+    sample_prompt = args.get("sample_prompt", "")
+    sample_config_file = os.path.join(workspace_dir, "sample_config.json")
+    if sample_generate == "enable":
+        resolution = args.get("resolution")
+        sample_config = {
+            "prompt": sample_prompt,
+            "negative_prompt": "",
+            "cfg": 5.0,
+            "steps": 20,
+            "width": resolution,
+            "height": resolution,
+        }
+        with open(sample_config_file, "w", encoding="utf-8") as f:
+            json.dump(sample_config, f, indent=4, ensure_ascii=False)
+
+        train_config["sample_config_file"] = sample_config_file
+    else:
+        train_config["sample_config_file"] = None
+
     with open(train_config_path, "w", encoding="utf-8") as f:
-        json.dump(train_config, f, indent=4)
+        json.dump(train_config, f, indent=4, ensure_ascii=False)
 
     run_hook_HYDiT_pyexec(train_config_path, train_config, HYDiT_tool_dir)
     return (
@@ -311,7 +338,7 @@ def MZ_HYDiTTrain_call(args={}):
 
 
 def run_hook_HYDiT_pyexec(train_config_path, train_config, HYDiT_tool_dir):
-    pb = Utils.progress_bar(train_config.get("epochs"), "sdxl")
+    pb = Utils.progress_bar(0, "sdxl")
     import traceback
     import comfy.model_management
     stop_server = None
@@ -365,30 +392,36 @@ def run_hook_HYDiT_pyexec(train_config_path, train_config, HYDiT_tool_dir):
 
 
 def get_sample_images(train_config):
-    # output_name = train_config.get("output_name")
-    # sample_images_dir = os.path.join(
-    #     os.path.dirname(train_config.get("dataset_config")), "sample_images"
-    # )
-    # pil_images = []
-    # pre_render_texts_x = []
-    # if os.path.exists(sample_images_dir):
-    #     image_files = os.listdir(sample_images_dir)
-    #     image_files = list(
-    #         filter(lambda x: x.endswith(".png"), image_files))
-    #     # 筛选 output_name 前缀
-    #     image_files = list(
-    #         filter(lambda x: x.startswith(output_name), image_files))
+    if train_config.get("sample_config_file") is None:
+        return None
 
-    #     image_files = sorted(image_files, key=lambda x: x)
+    from PIL import Image
+    output_name = train_config.get("task_flag")
 
-    #     for image_file in image_files:
-    #         pil_image = Image.open(os.path.join(sample_images_dir, image_file))
-    #         pil_images.append([pil_image])
-    #         pre_render_texts_x.append(image_file)
-    # result = Utils.xy_image(
-    #     pre_render_images=pil_images,
-    #     pre_render_texts_x=pre_render_texts_x,
-    #     pre_render_texts_y=[""],
-    # )
-    # return result
+    workspace_dir = train_config.get("workspace_dir")
+
+    sample_images_dir = os.path.join(workspace_dir, "sample_images")
+
+    pil_images = []
+    pre_render_texts_x = []
+    if os.path.exists(sample_images_dir):
+        image_files = os.listdir(sample_images_dir)
+        image_files = list(
+            filter(lambda x: x.endswith(".png"), image_files))
+        # 筛选 output_name 前缀
+        image_files = list(
+            filter(lambda x: x.startswith(output_name), image_files))
+
+        image_files = sorted(image_files, key=lambda x: x)
+
+        for image_file in image_files:
+            pil_image = Image.open(os.path.join(sample_images_dir, image_file))
+            pil_images.append([pil_image])
+            pre_render_texts_x.append(image_file)
+    result = Utils.xy_image(
+        pre_render_images=pil_images,
+        pre_render_texts_x=pre_render_texts_x,
+        pre_render_texts_y=[""],
+    )
+    return result
     return None

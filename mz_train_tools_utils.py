@@ -787,6 +787,8 @@ class Utils:
         # 去掉pre_render_texts_x中所有相同字符串前缀
 
         def get_common_prefix(pre_render_texts_x):
+            if len(pre_render_texts_x) == 0:
+                return ""
             common_prefix = ""
             for i in range(len(pre_render_texts_x[0])):
                 c = pre_render_texts_x[0][i]

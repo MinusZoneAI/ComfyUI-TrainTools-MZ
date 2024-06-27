@@ -5,6 +5,8 @@ import os
 import sys
 from types import SimpleNamespace
 
+import torch
+
 
 # python -m torch.distributed.launch  ./hook_HYDi_run.py --sys_path /data/ComfyUI/models/minus_zone_models/train_tools/HunyuanDiT/
 
@@ -87,11 +89,9 @@ if __name__ == "__main__":
     margs = hydit.config.get_args()
     margs.model = train_config.get("model", "DiT-g/2")
 
-
     margs.task_flag = train_config.get(
         "task_flag", "lora_porcelain_ema_rank64")
-    
-    
+
     margs.resume_split = train_config.get("resume_split", True)
     margs.ema_to_module = train_config.get("ema_to_module", True)
     margs.deepspeed = False
@@ -109,8 +109,8 @@ if __name__ == "__main__":
     margs.epochs = train_config.get("epochs", 50)
     margs.target_ratios = train_config.get(
         "target_ratios", ['1:1', '3:4', '4:3', '16:9', '9:16'])
-    margs.rope_img = train_config.get("rope_img", "base512")
-    margs.image_size = train_config.get("image_size", 512)
+    margs.rope_img = train_config.get("rope_img", "base1024")
+    margs.image_size = train_config.get("image_size", 1024)
     margs.rope_real = train_config.get("rope_real", True)
 
     margs.index_file = train_config.get("index_file", None)
@@ -122,7 +122,8 @@ if __name__ == "__main__":
     margs.log_every = train_config.get("log_every", 10)
 
     margs.results_dir = train_config.get("results_dir")
-    margs.mse_loss_weight_type = train_config.get("mse_loss_weight_type", "constant")
+    margs.mse_loss_weight_type = train_config.get(
+        "mse_loss_weight_type", "constant")
 
     for k, v in train_config.items():
         if hasattr(margs, k):
@@ -142,5 +143,7 @@ if __name__ == "__main__":
 
     hook_HYDiT_main.set_t5_encoder_path(
         train_config.get("t5_encoder_path"))
+
+    hook_HYDiT_main.set_train_config(train_config)
 
     hook_HYDiT_main.Core(margs, LOG)

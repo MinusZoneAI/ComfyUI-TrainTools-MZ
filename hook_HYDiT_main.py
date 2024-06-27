@@ -83,6 +83,14 @@ T5_ENCODER = {
 }
 
 
+global TRAIN_CONFIG
+
+
+def set_train_config(train_config):
+    global TRAIN_CONFIG
+    TRAIN_CONFIG = train_config
+
+
 def set_t5_encoder_path(path):
     global T5_ENCODER
     T5_ENCODER['MT5'] = path
@@ -135,12 +143,9 @@ def save_checkpoint(args, rank, logger, model, ema, epoch, train_steps, checkpoi
         cur_ckpt_save_dir = f"{checkpoint_dir}/{tag}"
         if rank == 0:
             if args.use_fp16:
-                try:
-                    model.module.save_pretrained(cur_ckpt_save_dir)
-                except Exception as e:
-                    model.save_pretrained(cur_ckpt_save_dir)
-            else:
                 model.module.save_pretrained(cur_ckpt_save_dir)
+            else:
+                model.save_pretrained(cur_ckpt_save_dir)
 
     checkpoint_path = "[Not rank 0. Disabled output.]"
 
@@ -182,12 +187,6 @@ def save_checkpoint(args, rank, logger, model, ema, epoch, train_steps, checkpoi
             logger.info(f"Saved checkpoint to {checkpoint_path}")
         except:
             logger.error(f"Saved failed to {checkpoint_path}")
-
-    if rank == 0 and len(dst_paths) > 0:
-        # Delete optimizer states to avoid occupying too much disk space.
-        for dst_path in dst_paths:
-            for opt_state_path in glob(f"{dst_path}/zero_dp_rank_*_tp_rank_00_pp_rank_00_optim_states.pt"):
-                os.remove(opt_state_path)
 
     return checkpoint_path
 
@@ -441,6 +440,7 @@ def Core(args, LOG):
     model, ema, start_epoch, start_epoch_step, train_steps = model_resume(
         args, model, ema, logger)
 
+
     if args.training_parts == "lora":
         loraconfig = LoraConfig(
             r=args.rank,
@@ -537,10 +537,15 @@ def Core(args, LOG):
         optimizer = torch.optim.AdamW(
             model.parameters(), lr=args.lr, weight_decay=args.weight_decay)
 
+
+
+    easy_sample_images(args, vae, text_encoder, tokenizer, model, embedder_t5,
+                       target_height=768, target_width=1280, train_steps=0)
     # torch.autograd.set_detect_anomaly(True)
     # with torch.autograd.detect_anomaly():
     with tqdm(total=total_steps, initial=train_steps) as pbar:
         
+
         # Training loop
         for epoch in range(start_epoch, args.epochs):
             logger.info(f"    Start random shuffle with seed={seed}")
@@ -605,8 +610,9 @@ def Core(args, LOG):
                 train_steps += 1
                 mean_loss += loss.item()
                 pbar.update(1)
-                pbar.set_description(f"Epoch {epoch}, step {step}, loss {loss.item():.4f}, mean_loss {mean_loss / step:.4f}")
-                
+                pbar.set_description(
+                    f"Epoch {epoch}, step {step}, loss {loss.item():.4f}, mean_loss {mean_loss / step:.4f}")
+
                 # ===========================================================================
                 # Log loss values:
                 # ===========================================================================
@@ -640,9 +646,11 @@ def Core(args, LOG):
                     gc.collect()
 
                 if (train_steps % args.ckpt_every == 0 or train_steps % args.ckpt_latest_every == 0  # or train_steps == args.max_training_steps
-                        ) and train_steps > 0:
+                    ) and train_steps > 0:
                     logger.info(
                         f"    Saving checkpoint at step {train_steps}.")
+                    easy_sample_images(args, vae, text_encoder, tokenizer, model, embedder_t5,
+                                       target_height=768, target_width=1280, train_steps=train_steps)
                     save_checkpoint(args, rank, logger, model, ema,
                                     epoch, train_steps, checkpoint_dir)
 
@@ -708,3 +716,128 @@ def model_resume(args, model, ema, logger):
             "    “If `resume` is True, then either `resume_split` must be true.”")
 
     return model, ema, start_epoch, start_epoch_step, train_steps
+
+
+def easy_sample_images(
+        args,
+        vae=None,
+        text_encoder=None,
+        tokenizer=None,
+        model=None,
+        embedder_t5=None,
+        target_height=768,
+        target_width=1280,
+        prompt="A photo of a girl with a hat on a sunny day",
+        negative_prompt="",
+        batch_size=1,
+        guidance_scale=5.0,
+        infer_steps=20,
+        sampler='ddpm',
+        train_steps=0,
+):
+    
+    with torch.no_grad():
+
+        from hydit.diffusion.pipeline import StableDiffusionPipeline
+        from diffusers import schedulers
+        from hydit.constants import SAMPLER_FACTORY
+        from hydit.modules.posemb_layers import get_fill_resize_and_crop, get_2d_rotary_pos_embed
+        from hydit.modules.models import HUNYUAN_DIT_CONFIG
+
+        workspace_dir = TRAIN_CONFIG.get("workspace_dir")
+        sample_config_file = TRAIN_CONFIG.get("sample_config_file", None)
+        if sample_config_file is None:
+            print("sample_config_file is not set.")
+            return
+        try:
+            sample_config = json.load(open(sample_config_file, "r"))
+        except Exception as e:
+            print(f"Failed to load sample_config_file: {sample_config_file}")
+            return
+        sample_images_dir = os.path.join(workspace_dir, "sample_images")
+        os.makedirs(sample_images_dir, exist_ok=True)
+
+        # Load sampler from factory
+        kwargs = SAMPLER_FACTORY[sampler]['kwargs']
+        scheduler = SAMPLER_FACTORY[sampler]['scheduler']
+
+        # Build scheduler according to the sampler.
+        scheduler_class = getattr(schedulers, scheduler)
+        scheduler = scheduler_class(**kwargs)
+
+        # Set timesteps for inference steps.
+        scheduler.set_timesteps(infer_steps, "cuda")
+
+        def calc_rope(height, width):
+            model_config = HUNYUAN_DIT_CONFIG["DiT-g/2"]
+            patch_size = model_config['patch_size']
+            head_size = model_config['hidden_size'] // model_config['num_heads']
+            th = height // 8 // patch_size
+            tw = width // 8 // patch_size
+            base_size = 512 // 8 // patch_size
+            start, stop = get_fill_resize_and_crop((th, tw), base_size)
+            sub_args = [start, stop, (th, tw)]
+            rope = get_2d_rotary_pos_embed(head_size, *sub_args)
+            return rope
+
+
+        pipeline = StableDiffusionPipeline(vae=vae,
+                                        text_encoder=text_encoder,
+                                        tokenizer=tokenizer,
+                                        unet=model,
+                                        scheduler=scheduler,
+                                        feature_extractor=None,
+                                        safety_checker=None,
+                                        requires_safety_checker=False,
+                                        embedder_t5=embedder_t5,
+                                        )
+        pipeline.to("cuda")
+
+        style = torch.as_tensor([0, 0] * batch_size, device="cuda")
+
+        src_size_cond = (target_width, target_height)
+        size_cond = list(src_size_cond) + [target_width, target_height, 0, 0]
+        image_meta_size = torch.as_tensor(
+            [size_cond] * 2 * batch_size, device="cuda",)
+
+        if type(sample_config) != list:
+            sample_config = [sample_config]
+        for i, sample in enumerate(sample_config):
+            prompt = sample.get("prompt", "")
+            negative_prompt = sample.get("negative_prompt", "")
+            guidance_scale = sample.get("cfg", guidance_scale)
+            infer_steps = sample.get("steps", infer_steps)
+            width = sample.get("width", target_width)
+            height = sample.get("height", target_height)
+
+            freqs_cis_img = calc_rope(height, width)
+            samples = pipeline(
+                height=height,
+                width=width,
+                prompt=prompt,
+                negative_prompt=negative_prompt,
+                num_images_per_prompt=batch_size,
+                guidance_scale=guidance_scale,
+                num_inference_steps=infer_steps,
+                style=style,
+                return_dict=False,
+                use_fp16=True,
+                learn_sigma=args.learn_sigma,
+                freqs_cis_img=freqs_cis_img,
+                image_meta_size=image_meta_size,
+            )[0]
+
+            # print("samples:",type(samples),)
+            # input("Press Enter to continue...")
+            # print("samples:",samples,)
+
+            if type(samples) == list:
+                pil_image = samples[0]
+            else:
+                pil_image = samples
+
+            sample_filename = f"{args.task_flag}_train_steps_{train_steps:07d}.png"
+            sample_filename_path = os.path.join(sample_images_dir, sample_filename)
+            pil_image.save(sample_filename_path)
+
+    return None
