@@ -712,6 +712,11 @@ def model_resume(args, model, ema, logger):
     return model, ema, start_epoch, start_epoch_step, train_steps
 
 
+from hydit.diffusion.pipeline import StableDiffusionPipeline
+from diffusers import schedulers
+from hydit.constants import SAMPLER_FACTORY
+from hydit.modules.posemb_layers import get_fill_resize_and_crop, get_2d_rotary_pos_embed
+from hydit.modules.models import HUNYUAN_DIT_CONFIG
 def easy_sample_images(
         args,
         vae=None,
@@ -732,11 +737,6 @@ def easy_sample_images(
 
     with torch.no_grad():
 
-        from hydit.diffusion.pipeline import StableDiffusionPipeline
-        from diffusers import schedulers
-        from hydit.constants import SAMPLER_FACTORY
-        from hydit.modules.posemb_layers import get_fill_resize_and_crop, get_2d_rotary_pos_embed
-        from hydit.modules.models import HUNYUAN_DIT_CONFIG
 
         workspace_dir = TRAIN_CONFIG.get("workspace_dir")
         sample_config_file = TRAIN_CONFIG.get("sample_config_file", None)
