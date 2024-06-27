@@ -297,34 +297,38 @@ def check_model_auto_download(args):
 
 
 def check_required():
-    try:
-        import pandas
-    except Exception as e:
-        subprocess.run([
-            sys.executable, "-m", "pip", "install", "pandas"
-        ], check=True)
-    
-    try:
-        import pyarrow
-    except Exception as e:
-        subprocess.run([
-            sys.executable, "-m", "pip", "install", "pyarrow"
-        ], check=True)
-    
-    try:
-        import diffusers
-    except Exception as e:
-        subprocess.run([
-            sys.executable, "-m", "pip", "install", "diffusers"
-        ], check=True)
-    
-    try:
-        import transformers
-    except Exception as e:
-        subprocess.run([
-            sys.executable, "-m", "pip", "install", "transformers"
-        ], check=True)
-    
+    #     timm==0.9.5
+    # diffusers==0.21.2
+    # peft==0.10.0
+    # protobuf==3.19.0
+    # torchvision==0.14.1
+    # transformers==4.39.1
+    # peft==0.10.0
+    # accelerate==0.29.3
+    # loguru==0.7.2
+    # einops==0.7.0
+    # sentencepiece==0.1.99
+    # cuda-python==11.7.1
+    # onnxruntime==1.12.1
+    # onnx==1.12.0
+    # nvidia-pyindex==1.0.9
+    # onnx-graphsurgeon==0.3.27
+    # polygraphy==0.47.1
+    # pandas==2.0.3
+    # gradio==3.50.2
+    # deepspeed==0.6.3
+    # pyarrow==16.1.0
+    packages = [
+        "pandas", "pyarrow", "diffusers", "transformers",
+        "timm", "peft", "accelerate", "loguru", "einops", "sentencepiece",
+        "polygraphy"
+    ]
+    for package in packages:
+        try:
+            __import__(package)
+        except ImportError:
+            subprocess.run([sys.executable, "-m", "pip",
+                           "install", package], check=True)
 
 
 def MZ_HYDiTTrain_call(args={}):
