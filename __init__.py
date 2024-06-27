@@ -50,7 +50,7 @@ NODE_CLASS_MAPPINGS["MZ_KohyaSSInitWorkspace"] = MZ_KohyaSSInitWorkspace
 NODE_DISPLAY_NAME_MAPPINGS["MZ_KohyaSSInitWorkspace"] = f"{AUTHOR_NAME} - KohyaSSInitWorkspace"
 
 
-class MZ_ImagesCopyWorkspace:
+class MZ_KohyaSSDatasetConfig:
     @classmethod
     def INPUT_TYPES(s):
         return {
@@ -65,9 +65,6 @@ class MZ_ImagesCopyWorkspace:
                 "force_clear_only_images": (["enable", "disable"], {"default": "disable"}),
                 "same_caption_generate": (["enable", "disable"], {"default": "disable"}),
                 "same_caption": ("STRING", {"default": "", "dynamicPrompts": True, "multiline": True}),
-                "description": ("STRING", {"default": """
-如果训练类型是controlnet,必须传入预处理后的图片(conditioning_images)
-""", "multiline": True}),
             },
             "optional": {
                 "conditioning_images": ("IMAGE",),
@@ -78,6 +75,9 @@ class MZ_ImagesCopyWorkspace:
     RETURN_NAMES = ("workspace_images_dir",)
 
     # OUTPUT_NODE = True
+    MZ_DESC = """
+如果训练类型是controlnet,必须传入预处理后的图片(conditioning_images)
+"""
 
     FUNCTION = "start"
     CATEGORY = CATEGORY_NAME
@@ -87,8 +87,12 @@ class MZ_ImagesCopyWorkspace:
         return mz_train_tools_core.MZ_ImageSelecter_call(kwargs)
 
 
-NODE_CLASS_MAPPINGS["MZ_ImagesCopyWorkspace"] = MZ_ImagesCopyWorkspace
+NODE_CLASS_MAPPINGS["MZ_ImagesCopyWorkspace"] = MZ_KohyaSSDatasetConfig
 NODE_DISPLAY_NAME_MAPPINGS["MZ_ImagesCopyWorkspace"] = f"{AUTHOR_NAME} - ImagesCopyWorkspace"
+
+# 别名
+NODE_CLASS_MAPPINGS["MZ_KohyaSSDatasetConfig"] = MZ_KohyaSSDatasetConfig
+NODE_DISPLAY_NAME_MAPPINGS["MZ_KohyaSSDatasetConfig"] = f"{AUTHOR_NAME} - KohyaSSDatasetConfig"
 
 
 class MZ_KohyaSSUseConfig:
@@ -290,6 +294,7 @@ NODE_CLASS_MAPPINGS["MZ_KohyaSSLoraTrain"] = MZ_KohyaSSLoraTrain
 NODE_DISPLAY_NAME_MAPPINGS[
     "MZ_KohyaSSLoraTrain"] = f"{AUTHOR_NAME} - KohyaSSTrain(lora)"
 
+
 class MZ_KohyaSSControlnetTrain:
 
     @classmethod
@@ -382,6 +387,229 @@ NODE_DISPLAY_NAME_MAPPINGS[
     "MZ_LoadImagesFromDirectoryPath"] = f"{AUTHOR_NAME} - LoadImagesFromDirectoryPath"
 
 
-# 别名
-NODE_CLASS_MAPPINGS["MZ_DatasetConfig"] = MZ_ImagesCopyWorkspace
-NODE_DISPLAY_NAME_MAPPINGS["MZ_DatasetConfig"] = f"{AUTHOR_NAME} - DatasetConfig"
+from . import mz_train_tools_core_HYDiT
+
+
+class MZ_HYDiTInitWorkspace:
+    @classmethod
+    def INPUT_TYPES(s):
+        return {
+            "required": {
+                "train_name": ("STRING", {"default": ""}),
+                "branch": ("STRING", {"default": "5657364143e44ac90f72aeb47b81bd505a95665d"}),
+                "source": ([
+                    "github",
+                    "githubfast",
+                    "521github",
+                    "kkgithub",
+                ], {"default": "github"}),
+                "seed": ("INT", {"default": 0}),
+            },
+        }
+
+    RETURN_TYPES = ("MZ_TT_HYDiT_WorkspaceConfig",)
+    RETURN_NAMES = ("workspace_config",)
+
+    FUNCTION = "start"
+
+    CATEGORY = CATEGORY_NAME
+
+    def start(self, **kwargs):
+        importlib.reload(mz_train_tools_core_HYDiT)
+        return mz_train_tools_core_HYDiT.MZ_HYDiTInitWorkspace_call(kwargs)
+
+
+NODE_CLASS_MAPPINGS["MZ_HYDiTInitWorkspace"] = MZ_HYDiTInitWorkspace
+NODE_DISPLAY_NAME_MAPPINGS["MZ_HYDiTInitWorkspace"] = f"{AUTHOR_NAME} - HYDiTInitWorkspace"
+
+
+class MZ_HYDiTDatasetConfig:
+    @classmethod
+    def INPUT_TYPES(s):
+        return {
+            "required": {
+                "workspace_config": ("MZ_TT_HYDiT_WorkspaceConfig",),
+                "resolution": ("INT", {"default": 1024}),
+            },
+            "optional": {
+                "images": ("IMAGE",),
+            }
+        }
+
+    RETURN_TYPES = ("STRING",)
+    RETURN_NAMES = ("workspace_images_dir",)
+
+    FUNCTION = "start"
+
+    CATEGORY = CATEGORY_NAME
+
+    def start(self, **kwargs):
+        importlib.reload(mz_train_tools_core_HYDiT)
+        return mz_train_tools_core_HYDiT.MZ_HYDiTDatasetConfig_call(kwargs)
+
+
+NODE_CLASS_MAPPINGS["MZ_HYDiTDatasetConfig"] = MZ_HYDiTDatasetConfig
+NODE_DISPLAY_NAME_MAPPINGS["MZ_HYDiTDatasetConfig"] = f"{AUTHOR_NAME} - HYDiTDatasetConfig"
+
+
+# class MZ_HYDiTUseConfig:
+#     @classmethod
+#     def INPUT_TYPES(s):
+
+#         return {
+#             "required": {
+#                 "workspace_config": ("MZ_TT_HYDiT_WorkspaceConfig",),
+#                 "workspace_images_dir": ("STRING", {"forceInput": True}),
+#             },
+#             "optional": {
+#             }
+#         }
+
+#     RETURN_TYPES = ("MZ_TT_HYDiT_TrainConfig",)
+#     RETURN_NAMES = ("train_config",)
+
+#     FUNCTION = "start"
+
+#     CATEGORY = CATEGORY_NAME
+
+#     def start(self, **kwargs):
+#         importlib.reload(mz_train_tools_core_HYDiT)
+#         # kwargs["train_config_template_dir"] = self.train_config_template_dir
+#         return mz_train_tools_core_HYDiT.MZ_HYDiTUseConfig_call(kwargs)
+
+
+# NODE_CLASS_MAPPINGS["MZ_HYDiTUseConfig"] = MZ_HYDiTUseConfig
+# NODE_DISPLAY_NAME_MAPPINGS["MZ_HYDiTUseConfig"] = f"{AUTHOR_NAME} - HYDiTUseConfig"
+
+
+class MZ_HYDiTAdvConfig:
+    @classmethod
+    def INPUT_TYPES(s):
+        return {
+            "required": {
+                "learn_sigma": (["enable", "disable"], {"default": "enable"}),
+                "text_states_dim": ("INT", {"default": 1024}),
+                "text_states_dim_t5": ("INT", {"default": 2048}),
+                "text_len": ("INT", {"default": 77}),
+                "text_len_t5": ("INT", {"default": 256}),
+                "norm": (["layer", "instance"], {"default": "layer"}),
+                "infer_mode": (["torch", "deepspeed"], {"default": "torch"}),
+                "use_fp16": (["enable", "disable"], {"default": "enable"}),
+            }
+        }
+
+    RETURN_TYPES = ("MZ_TT_HYDiT_AdvConfig",)
+    RETURN_NAMES = ("advanced_config",)
+
+    FUNCTION = "start"
+
+    CATEGORY = CATEGORY_NAME
+
+    def start(self, **kwargs):
+        return (kwargs,)
+
+
+NODE_CLASS_MAPPINGS["MZ_HYDiTAdvConfig"] = MZ_HYDiTAdvConfig
+NODE_DISPLAY_NAME_MAPPINGS["MZ_HYDiTAdvConfig"] = f"{AUTHOR_NAME} - HYDiTAdvConfig"
+
+
+class MZ_HYDiTTrain:
+    @classmethod
+    def INPUT_TYPES(s):
+
+        hunyuan_models_path = os.path.join(
+            Utils.get_comfyui_models_path(), "hunyuan")
+        os.makedirs(hunyuan_models_path, exist_ok=True)
+
+        models = Utils.get_models_by_folder(hunyuan_models_path)
+        folders = Utils.get_folders_by_folder(hunyuan_models_path)
+
+        vae_models = Utils.get_models_by_folder(
+            os.path.join(Utils.get_comfyui_models_path(), "vae"))
+        unet_models = Utils.get_models_by_folder(
+            os.path.join(Utils.get_comfyui_models_path(), "unet"))
+        return {
+            "required": {
+                "workspace_config": ("MZ_TT_HYDiT_WorkspaceConfig",),
+                "unet_path": (["auto"] + models + unet_models, {"default": "auto"}),
+                "vae_ema_path": (["auto"] + folders + vae_models, {"default": "auto"}),
+                "text_encoder_path": (["auto"] + folders, {"default": "auto"}),
+                "tokenizer_path": (["auto"] + folders, {"default": "auto"}),
+                "t5_encoder_path": (["auto"] + folders, {"default": "auto"}),
+                "resolution": ("INT", {"default": 1024}),
+                "batch_size": ("INT", {"default": 1}),
+                "epochs": ("INT", {"default": 50}),
+                "save_every_n_epochs": ("INT", {"default": 10}),
+                "base_lora": (["latest", "empty"], {"default": "latest"}),
+                "sample_generate": (["enable", "disable"], {"default": "enable"}),
+                "sample_prompt": ("STRING", {"default:": "", "dynamicPrompts": True, "multiline": True}),
+            },
+            "optional": {
+                "workspace_images_dir": ("STRING", {"forceInput": True}),
+                "has_no_effect": (AlwaysEqualProxy("*"),),
+            }
+        }
+
+    RETURN_TYPES = ()
+    RETURN_NAMES = ()
+
+    FUNCTION = "start"
+
+    MZ_DESC = """
+base_size The base resolution (n, n) from which to create multiple resolutions | Recommended values: 256/512/1024 
+"""
+
+    OUTPUT_NODE = True
+
+    CATEGORY = CATEGORY_NAME
+
+    def start(self, **kwargs):
+        importlib.reload(mz_train_tools_core_HYDiT)
+        return mz_train_tools_core_HYDiT.MZ_HYDiTTrain_call(kwargs)
+
+
+NODE_CLASS_MAPPINGS["MZ_HYDiTTrain"] = MZ_HYDiTTrain
+NODE_DISPLAY_NAME_MAPPINGS["MZ_HYDiTTrain"] = f"{AUTHOR_NAME} - HYDiTTrain"
+
+
+class MZ_TrainToolsDebug:
+    @classmethod
+    def INPUT_TYPES(s):
+        return {
+            "required": {
+                "object": (AlwaysEqualProxy("*"),),
+                "indent": ("INT", {"default": 2}),
+                "depth": ("INT", {"default": 5}),
+                "width": ("INT", {"default": 80}),
+                "compact": (["enable", "disable"], {"default": "enable"}),
+                "sort_keys": (["enable", "disable"], {"default": "enable"}),
+                "underscore_numbers": (["enable", "disable"], {"default": "enable"}),
+            },
+        }
+
+    RETURN_TYPES = ("STRING",)
+    RETURN_NAMES = ("debug",)
+
+    FUNCTION = "start"
+
+    CATEGORY = CATEGORY_NAME
+
+    def start(self, **kwargs):
+
+        from pprint import pprint, pp
+        object = kwargs["object"]
+        indent = kwargs["indent"]
+        depth = kwargs["depth"]
+        width = kwargs["width"]
+        compact = kwargs["compact"] == "enable"
+        sort_keys = kwargs["sort_keys"] == "enable"
+        underscore_numbers = kwargs["underscore_numbers"] == "enable"
+
+        debug = pp(object, stream=None, indent=indent, depth=depth, width=width,
+                   compact=compact, sort_dicts=sort_keys, underscore_numbers=underscore_numbers)
+
+        return (debug,)
+
+
+NODE_CLASS_MAPPINGS["MZ_TrainToolsDebug"] = MZ_TrainToolsDebug
+NODE_DISPLAY_NAME_MAPPINGS["MZ_TrainToolsDebug"] = f"{AUTHOR_NAME} - TrainToolsDebug"

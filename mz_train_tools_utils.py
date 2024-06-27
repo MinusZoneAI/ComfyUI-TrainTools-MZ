@@ -913,3 +913,18 @@ class Utils:
                       label_text, font=font, fill="black")
 
         return full_canvas
+
+    def get_models_by_folder(dir_path):
+        models = []
+        for root, dirs, files in os.walk(dir_path):
+            for file in files:
+                if file.endswith(".pth") or file.endswith(".pt") or file.endswith(".pkl") or file.endswith(".onnx") or file.endswith(".safetensors"):
+                    models.append(os.path.join(root, file))
+        return models
+    
+    def get_folders_by_folder(dir_path):
+        folders = []
+        for root, dirs, files in os.walk(dir_path):
+            for dir in dirs:
+                folders.append(os.path.join(root, dir))
+        return folders
