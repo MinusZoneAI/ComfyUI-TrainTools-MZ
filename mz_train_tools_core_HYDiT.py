@@ -129,7 +129,163 @@ def MZ_HYDiTDatasetConfig_call(args={}):
     )
 
 
+HYDiT_MODEL = {
+    "HunyuanDiT/t2i/model/pytorch_model_ema.pt": {
+        "url": "https://www.modelscope.cn/api/v1/models/modelscope/HunyuanDiT/repo?Revision=master&FilePath=t2i%2Fmodel%2Fpytorch_model_ema.pt",
+    },
+    "HunyuanDiT/t2i/model/pytorch_model_module.pt": {
+        "url": "https://www.modelscope.cn/api/v1/models/modelscope/HunyuanDiT/repo?Revision=master&FilePath=t2i%2Fmodel%2Fpytorch_model_module.pt",
+    },
+    "HunyuanDiT/t2i/sdxl-vae-fp16-fix/diffusion_pytorch_model.safetensors": {
+        "url": "https://www.modelscope.cn/api/v1/models/modelscope/HunyuanDiT/repo?Revision=master&FilePath=t2i%2Fsdxl-vae-fp16-fix%2Fdiffusion_pytorch_model.safetensors",
+    },
+    "HunyuanDiT/t2i/sdxl-vae-fp16-fix/config.json": {
+        "url": "https://www.modelscope.cn/api/v1/models/modelscope/HunyuanDiT/repo?Revision=master&FilePath=t2i%2Fsdxl-vae-fp16-fix%2Fconfig.json",
+    },
+    "HunyuanDiT/t2i/clip_text_encoder/pytorch_model.bin": {
+        "url": "https://www.modelscope.cn/api/v1/models/modelscope/HunyuanDiT/repo?Revision=master&FilePath=t2i%2Fclip_text_encoder%2Fpytorch_model.bin",
+    },
+    "HunyuanDiT/t2i/clip_text_encoder/config.json": {
+        "url": "https://www.modelscope.cn/api/v1/models/modelscope/HunyuanDiT/repo?Revision=master&FilePath=t2i%2Fclip_text_encoder%2Fconfig.json",
+    },
+    "HunyuanDiT/t2i/tokenizer/special_tokens_map.json": {
+        "url": "https://www.modelscope.cn/api/v1/models/modelscope/HunyuanDiT/repo?Revision=master&FilePath=t2i%2Ftokenizer%2Fspecial_tokens_map.json",
+    },
+    "HunyuanDiT/t2i/tokenizer/tokenizer_config.json": {
+        "url": "https://www.modelscope.cn/api/v1/models/modelscope/HunyuanDiT/repo?Revision=master&FilePath=t2i%2Ftokenizer%2Ftokenizer_config.json",
+    },
+    "HunyuanDiT/t2i/tokenizer/vocab.txt": {
+        "url": "https://www.modelscope.cn/api/v1/models/modelscope/HunyuanDiT/repo?Revision=master&FilePath=t2i%2Ftokenizer%2Fvocab.txt",
+    },
+    "HunyuanDiT/t2i/tokenizer/vocab_org.txt": {
+        "url": "https://www.modelscope.cn/api/v1/models/modelscope/HunyuanDiT/repo?Revision=master&FilePath=t2i%2Ftokenizer%2Fvocab_org.txt",
+    },
+    "HunyuanDiT/t2i/mt5/config.json": {
+        "url": "https://www.modelscope.cn/api/v1/models/modelscope/HunyuanDiT/repo?Revision=master&FilePath=t2i%2Fmt5%2Fconfig.json",
+    },
+    "HunyuanDiT/t2i/mt5/generation_config.json": {
+        "url": "https://www.modelscope.cn/api/v1/models/modelscope/HunyuanDiT/repo?Revision=master&FilePath=t2i%2Fmt5%2Fgeneration_config.json",
+    },
+    "HunyuanDiT/t2i/mt5/special_tokens_map.json": {
+        "url": "https://www.modelscope.cn/api/v1/models/modelscope/HunyuanDiT/repo?Revision=master&FilePath=t2i%2Fmt5%2Fspecial_tokens_map.json",
+    },
+    "HunyuanDiT/t2i/mt5/spiece.model": {
+        "url": "https://www.modelscope.cn/api/v1/models/modelscope/HunyuanDiT/repo?Revision=master&FilePath=t2i%2Fmt5%2Fspiece.model",
+    },
+    "HunyuanDiT/t2i/mt5/tokenizer_config.json": {
+        "url": "https://www.modelscope.cn/api/v1/models/modelscope/HunyuanDiT/repo?Revision=master&FilePath=t2i%2Fmt5%2Ftokenizer_config.json",
+    },
+    "HunyuanDiT/t2i/mt5/pytorch_model.bin": {
+        "url": "https://www.modelscope.cn/api/v1/models/modelscope/HunyuanDiT/repo?Revision=master&FilePath=t2i%2Fmt5%2Fpytorch_model.bin",
+    },
+}
+
+
+def check_model_auto_download(args):
+    unet_path = args.get("unet_path", "auto")
+    hunyuan_base_path = os.path.join(
+        Utils.get_comfyui_models_path(), "hunyuan")
+    if unet_path == "auto":
+        ema_to_module = args.get("ema_to_module", "enable") == "enable"
+        if ema_to_module:
+            download_file = "HunyuanDiT/t2i/model/pytorch_model_ema.pt"
+        else:
+            download_file = "HunyuanDiT/t2i/model/pytorch_model_module.pt"
+        download_fullpath = os.path.join(
+            hunyuan_base_path, download_file)
+        os.makedirs(os.path.dirname(download_fullpath), exist_ok=True)
+        success_path = Utils.download_file(
+            download_fullpath,
+            HYDiT_MODEL[download_file]["url"],
+        )
+        if os.path.exists(success_path):
+            args["unet_path"] = download_fullpath
+
+    vae_ema_path = args.get("vae_ema_path", "auto")
+    if vae_ema_path == "auto":
+        download_files = []
+        prefix = "HunyuanDiT/t2i/sdxl-vae-fp16-fix/"
+        for key in HYDiT_MODEL:
+            if key.startswith(prefix):
+                download_files.append(key)
+
+        for download_file in download_files:
+            download_fullpath = os.path.join(
+                hunyuan_base_path, download_file)
+            os.makedirs(os.path.dirname(download_fullpath), exist_ok=True)
+            Utils.download_file(
+                download_fullpath,
+                HYDiT_MODEL[download_file]["url"],
+            )
+
+        args["vae_ema_path"] = os.path.join(
+            hunyuan_base_path, prefix)
+
+    text_encoder_path = args.get("text_encoder_path", "auto")
+    if text_encoder_path == "auto":
+        download_files = []
+        prefix = "HunyuanDiT/t2i/clip_text_encoder/"
+        for key in HYDiT_MODEL:
+            if key.startswith(prefix):
+                download_files.append(key)
+
+        for download_file in download_files:
+            download_fullpath = os.path.join(
+                hunyuan_base_path, download_file)
+            os.makedirs(os.path.dirname(download_fullpath), exist_ok=True)
+            Utils.download_file(
+                download_fullpath,
+                HYDiT_MODEL[download_file]["url"],
+            )
+
+        args["text_encoder_path"] = os.path.join(
+            hunyuan_base_path, prefix)
+
+    tokenizer_path = args.get("tokenizer_path", "auto")
+    if tokenizer_path == "auto":
+        download_files = []
+        prefix = "HunyuanDiT/t2i/tokenizer/"
+        for key in HYDiT_MODEL:
+            if key.startswith(prefix):
+                download_files.append(key)
+
+        for download_file in download_files:
+            download_fullpath = os.path.join(
+                hunyuan_base_path, download_file)
+            os.makedirs(os.path.dirname(download_fullpath), exist_ok=True)
+            Utils.download_file(
+                download_fullpath,
+                HYDiT_MODEL[download_file]["url"],
+            )
+
+        args["tokenizer_path"] = os.path.join(
+            hunyuan_base_path, prefix)
+
+    t5_encoder_path = args.get("t5_encoder_path", "auto")
+    if t5_encoder_path == "auto":
+        download_files = []
+        prefix = "HunyuanDiT/t2i/mt5/"
+        for key in HYDiT_MODEL:
+            if key.startswith(prefix):
+                download_files.append(key)
+
+        for download_file in download_files:
+            download_fullpath = os.path.join(
+                hunyuan_base_path, download_file)
+            os.makedirs(os.path.dirname(download_fullpath), exist_ok=True)
+            Utils.download_file(
+                download_fullpath,
+                HYDiT_MODEL[download_file]["url"],
+            )
+
+        args["t5_encoder_path"] = os.path.join(
+            hunyuan_base_path, prefix)
+
+    return args
+
+
 def MZ_HYDiTTrain_call(args={}):
+    args = check_model_auto_download(args)
     # raise Exception(args)
     resolution = args.get("resolution")
 
@@ -292,6 +448,7 @@ def MZ_HYDiTTrain_call(args={}):
         "workspace_name": workspace_name,
         "workspace_dir": workspace_dir,
         "batch_size": args.get("batch_size", 1),
+        "ema_to_module": args.get("ema_to_module", "enable") == "enable",
         "target_ratios": train_config.get("target_ratios", ["1:1", "3:4", "4:3", "16:9", "9:16"]),
         "index_file": dataset_mt_json,
         "epochs": epochs,

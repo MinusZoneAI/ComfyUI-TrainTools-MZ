@@ -540,6 +540,7 @@ class MZ_HYDiTTrain:
                 "batch_size": ("INT", {"default": 1}),
                 "epochs": ("INT", {"default": 50}),
                 "ckpt_every": ("INT", {"default": 10}),
+                "ema_to_module": (["enable", "disable"], {"default": "enable"}),
                 "base_lora": (["latest", "empty"], {"default": "latest"}),
                 "sample_generate": (["enable", "disable"], {"default": "enable"}),
                 "sample_prompt": ("STRING", {"default:": "", "dynamicPrompts": True, "multiline": True}),
