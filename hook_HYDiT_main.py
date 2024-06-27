@@ -529,7 +529,7 @@ def Core(args, LOG):
 
     if args.use_fp16:
         optimizer = torch.optim.AdamW(
-            model.parameters(), lr=args.lr, weight_decay=args.weight_decay, eps=4e-6)
+            model.parameters(), lr=args.lr, weight_decay=args.weight_decay, eps=TRAIN_CONFIG.get("adam_epsilon", 1e-8))
     else:
         optimizer = torch.optim.AdamW(
             model.parameters(), lr=args.lr, weight_decay=args.weight_decay)
@@ -784,7 +784,7 @@ def easy_sample_images(
                                            requires_safety_checker=False,
                                            embedder_t5=embedder_t5,
                                            )
-        
+
         pipeline.to("cuda")
 
         style = torch.as_tensor([0, 0] * batch_size, device="cuda")
