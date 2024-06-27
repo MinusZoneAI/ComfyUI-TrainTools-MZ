@@ -576,11 +576,12 @@ def Core(args, LOG):
                             with torch.cuda.stream(ema_stream):
                                 ema.update(model.module.module, step=step)
                             torch.cuda.current_stream().wait_stream(ema_stream)
+                    
+                    with torch.cuda.amp.autocast(enabled=args.use_fp16):
+                        loss_dict = diffusion.training_losses(
+                            model=model, x_start=latents, model_kwargs=model_kwargs)
 
-                    loss_dict = diffusion.training_losses(
-                        model=model, x_start=latents, model_kwargs=model_kwargs)
-
-                    loss = loss_dict["loss"].mean()
+                        loss = loss_dict["loss"].mean() 
 
                     # print(f"step={step}, loss={loss.item()}")
 
