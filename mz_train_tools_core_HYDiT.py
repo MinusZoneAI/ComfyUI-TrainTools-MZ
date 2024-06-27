@@ -194,12 +194,16 @@ def check_model_auto_download(args):
         download_fullpath = os.path.join(
             hunyuan_base_path, download_file)
         os.makedirs(os.path.dirname(download_fullpath), exist_ok=True)
-        success_path = Utils.download_file(
-            HYDiT_MODEL[download_file]["url"],
-            download_fullpath,
-        )
-        if os.path.exists(success_path):
+
+        if os.path.exists(download_fullpath):
             args["unet_path"] = download_fullpath
+        else:
+            success_path = Utils.download_file(
+                HYDiT_MODEL[download_file]["url"],
+                download_fullpath,
+            )
+            if os.path.exists(success_path):
+                args["unet_path"] = download_fullpath
 
     vae_ema_path = args.get("vae_ema_path", "auto")
     if vae_ema_path == "auto":
@@ -213,10 +217,12 @@ def check_model_auto_download(args):
             download_fullpath = os.path.join(
                 hunyuan_base_path, download_file)
             os.makedirs(os.path.dirname(download_fullpath), exist_ok=True)
-            Utils.download_file(
-                HYDiT_MODEL[download_file]["url"],
-                download_fullpath,
-            )
+
+            if not os.path.exists(download_fullpath):
+                Utils.download_file(
+                    HYDiT_MODEL[download_file]["url"],
+                    download_fullpath,
+                )
 
         args["vae_ema_path"] = os.path.join(
             hunyuan_base_path, prefix)
@@ -233,10 +239,12 @@ def check_model_auto_download(args):
             download_fullpath = os.path.join(
                 hunyuan_base_path, download_file)
             os.makedirs(os.path.dirname(download_fullpath), exist_ok=True)
-            Utils.download_file(
-                HYDiT_MODEL[download_file]["url"],
-                download_fullpath,
-            )
+
+            if not os.path.exists(download_fullpath):
+                Utils.download_file(
+                    HYDiT_MODEL[download_file]["url"],
+                    download_fullpath,
+                )
 
         args["text_encoder_path"] = os.path.join(
             hunyuan_base_path, prefix)
@@ -253,10 +261,12 @@ def check_model_auto_download(args):
             download_fullpath = os.path.join(
                 hunyuan_base_path, download_file)
             os.makedirs(os.path.dirname(download_fullpath), exist_ok=True)
-            Utils.download_file(
-                HYDiT_MODEL[download_file]["url"],
-                download_fullpath,
-            )
+
+            if not os.path.exists(download_fullpath):
+                Utils.download_file(
+                    HYDiT_MODEL[download_file]["url"],
+                    download_fullpath,
+                )
 
         args["tokenizer_path"] = os.path.join(
             hunyuan_base_path, prefix)
@@ -273,10 +283,12 @@ def check_model_auto_download(args):
             download_fullpath = os.path.join(
                 hunyuan_base_path, download_file)
             os.makedirs(os.path.dirname(download_fullpath), exist_ok=True)
-            Utils.download_file(
-                HYDiT_MODEL[download_file]["url"],
-                download_fullpath,
-            )
+
+            if not os.path.exists(download_fullpath):
+                Utils.download_file(
+                    HYDiT_MODEL[download_file]["url"],
+                    download_fullpath,
+                )
 
         args["t5_encoder_path"] = os.path.join(
             hunyuan_base_path, prefix)
@@ -284,7 +296,18 @@ def check_model_auto_download(args):
     return args
 
 
+def check_required():
+    try:
+        import pandas
+
+    except Exception as e:
+        subprocess.run([
+            sys.executable, "-m", "pip", "install", "pandas"
+        ], check=True)
+
+
 def MZ_HYDiTTrain_call(args={}):
+    check_required()
     args = check_model_auto_download(args)
     # raise Exception(args)
     resolution = args.get("resolution")
