@@ -109,7 +109,8 @@ def create_exp_folder(args, rank):
     existed_experiments = []
     for x in _existed_experiments:
         if os.path.isdir(os.path.join(args.results_dir, x)):
-            existed_experiments.append(x)
+            if x.split('-')[0].isdigit():
+                existed_experiments.append(x)
 
     if len(existed_experiments) == 0:
         experiment_index = 1
