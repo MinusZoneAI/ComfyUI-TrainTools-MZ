@@ -115,6 +115,17 @@ def MZ_HYDiTDatasetConfig_call(args={}):
     if workspace_name is None or workspace_name == "":
         raise Exception("训练名称不能为空(workspace_name is required)")
 
+    force_clear = args.get("force_clear") == "enable"
+    force_clear_only_images = args.get("force_clear_only_images") == "enable"
+    if force_clear:
+        if force_clear_only_images:
+            for file in os.listdir(train_images_dir):
+                if file.lower().endswith(".png") or file.lower().endswith(".jpg"):
+                    os.remove(os.path.join(train_images_dir, file))
+        else:
+            shutil.rmtree(train_images_dir)
+            os.makedirs(train_images_dir, exist_ok=True)
+
     saved_images_path = []
 
     for i, pil_image in enumerate(pil_images):
@@ -123,6 +134,17 @@ def MZ_HYDiTDatasetConfig_call(args={}):
         filename = hashlib.md5(pil_image.tobytes()).hexdigest() + ".png"
         pil_image.save(os.path.join(train_images_dir, filename))
         saved_images_path.append(filename)
+
+    same_caption_generate = args.get("same_caption_generate") == "enable"
+    if same_caption_generate:
+        same_caption = args.get("same_caption").strip()
+        if same_caption != "":
+            # 循环已经保存的图片
+            for i, filename in enumerate(saved_images_path):
+                base_filename = os.path.splitext(filename)[0]
+                caption_filename = base_filename + ".caption"
+                with open(os.path.join(train_images_dir, caption_filename), "w", encoding="utf-8") as f:
+                    f.write(same_caption)
 
     return (
         train_images_dir,
@@ -346,7 +368,7 @@ def MZ_HYDiTTrain_call(args={}):
 
         writer.writerow(["image_path", "text_zh"])
         for filename in full_filenames:
-            if filename.endswith(".png"):
+            if filename.lower().endswith(".png"):
 
                 image_path = os.path.join(workspace_images_dir, filename)
                 pil_image = Image.open(image_path)
@@ -596,7 +618,7 @@ def get_sample_images(train_config):
     if os.path.exists(sample_images_dir):
         image_files = os.listdir(sample_images_dir)
         image_files = list(
-            filter(lambda x: x.endswith(".png"), image_files))
+            filter(lambda x: x.lower().endswith(".png"), image_files))
         # 筛选 output_name 前缀
         image_files = list(
             filter(lambda x: x.startswith(output_name), image_files))

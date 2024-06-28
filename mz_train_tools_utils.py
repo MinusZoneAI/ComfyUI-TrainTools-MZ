@@ -70,7 +70,7 @@ class Utils:
             files = os.listdir(path)
             new_files = []
             for file in files:
-                if file.endswith(".png"):
+                if file.lower().endswith(".png"):
                     new_files.append(file)
             files = new_files
             files.sort(key=lambda x: int(os.path.basename(x).split(".")[0]))

@@ -367,8 +367,8 @@ class MZ_LoadImagesFromDirectoryPath:
         if not os.path.exists(image_dir):
             return (images,)
         images = os.listdir(image_dir)
-        images = [x for x in images if x.endswith(
-            ".png") or x.endswith(".jpg")]
+        images = [x for x in images if x.lower().endswith(
+            ".png") or x.lower().endswith(".jpg")]
         images = [os.path.join(image_dir, x) for x in images]
 
         pil_images = []
@@ -430,6 +430,10 @@ class MZ_HYDiTDatasetConfig:
             "required": {
                 "workspace_config": ("MZ_TT_HYDiT_WorkspaceConfig",),
                 "resolution": ("INT", {"default": 1024}),
+                "force_clear": (["enable", "disable"], {"default": "disable"}),
+                "force_clear_only_images": (["enable", "disable"], {"default": "disable"}),
+                "same_caption_generate": (["enable", "disable"], {"default": "disable"}),
+                "same_caption": ("STRING", {"default": "", "dynamicPrompts": True, "multiline": True}),
             },
             "optional": {
                 "images": ("IMAGE",),

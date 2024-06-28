@@ -120,7 +120,7 @@ def MZ_ImageSelecter_call(args={}):
     if force_clear:
         if force_clear_only_images:
             for file in os.listdir(train_images_dir):
-                if file.endswith(".png") or file.endswith(".jpg"):
+                if file.lower().endswith(".png") or file.lower().endswith(".jpg"):
                     os.remove(os.path.join(train_images_dir, file))
         else:
             shutil.rmtree(train_images_dir)
@@ -359,7 +359,7 @@ def get_sample_images(train_config):
     if os.path.exists(sample_images_dir):
         image_files = os.listdir(sample_images_dir)
         image_files = list(
-            filter(lambda x: x.endswith(".png"), image_files))
+            filter(lambda x: x.lower().endswith(".png"), image_files))
         # 筛选 output_name 前缀
         image_files = list(
             filter(lambda x: x.startswith(output_name), image_files))
