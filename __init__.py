@@ -379,7 +379,7 @@ class MZ_LoadImagesFromDirectoryPath:
         for pil_image in pil_images:
             tensor_images.append(Utils.pil2tensor(pil_image))
 
-        return (tensor_images,)
+        return (Utils.list_tensor2tensor(tensor_images),)
 
 
 NODE_CLASS_MAPPINGS["MZ_LoadImagesFromDirectoryPath"] = MZ_LoadImagesFromDirectoryPath
