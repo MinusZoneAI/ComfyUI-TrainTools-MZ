@@ -49,7 +49,6 @@ if __name__ == "__main__":
 
     print("HYDi run hook")
 
-
     try:
         from . import hook_HYDiT_main_train_deepspeed
     except Exception as e:
@@ -108,14 +107,20 @@ if __name__ == "__main__":
     margs.index_file = train_config.get("index_file", None)
 
     margs.lr = train_config.get("lr", 1e-5)
+    
+    margs.rank = train_config.get("rank", 8)
 
-    margs.noise_offset = train_config.get("noise_offset", 0.1)
+    margs.noise_offset = train_config.get("noise_offset", 0.0)
 
     margs.log_every = train_config.get("log_every", 99999999999999)
-    margs.use_zero_stage = 2
+    
+    margs.use_zero_stage = train_config.get("use_zero_stage", 2)
+
+    margs.global_batch_size = train_config.get("global_batch_size", 1)
     margs.deepspeed = True
 
     margs.results_dir = train_config.get("results_dir")
+
     margs.mse_loss_weight_type = train_config.get(
         "mse_loss_weight_type", "constant")
 

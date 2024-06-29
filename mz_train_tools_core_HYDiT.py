@@ -10,7 +10,9 @@ import json
 import subprocess
 import time
 
+import safetensors.torch
 import torch
+
 
 from .mz_train_tools_utils import Utils
 import folder_paths
@@ -519,7 +521,7 @@ def MZ_HYDiTTrain_call(args={}):
         "vae_ema_path": args.get("vae_ema_path"),
         "text_encoder_path": args.get("text_encoder_path"),
         "tokenizer_path": args.get("tokenizer_path"),
-        "t5_encoder_path": args.get("t5_encoder_path"),
+        "t5_encoder_path": args.get("t5_encoder_path") if args.get("t5_encoder_path") != "none" else None,
         "results_dir": output_dir,
         "task_flag": output_name,
     })
@@ -641,3 +643,353 @@ def get_sample_images(train_config):
     )
     return result
     return None
+
+
+def get_model_from_path(model_path, lora_path, width, height):
+
+    from hydit.modules.models import HunYuanDiT, HUNYUAN_DIT_CONFIG
+
+    from types import SimpleNamespace
+
+    # self.text_states_dim = args.text_states_dim
+    # self.text_states_dim_t5 = args.text_states_dim_t5
+    # self.text_len = args.text_len
+    # self.text_len_t5 = args.text_len_t5
+    # self.norm = args.norm
+    # use_flash_attn = args.infer_mode == 'fa' or args.use_flash_attn
+
+    args = SimpleNamespace()
+    args.learn_sigma = True
+    args.text_states_dim = 1024
+    args.text_states_dim_t5 = 2048
+    args.text_len = 77
+    args.text_len_t5 = 256
+    args.norm = "layer"
+    args.infer_mode = "torch"
+    args.use_fp16 = True
+    args.qk_norm = True
+    args.use_flash_attn = False
+
+    model_config = HUNYUAN_DIT_CONFIG["DiT-g/2"]
+
+    latent_size = (width // 8, height // 8)
+
+    model = HunYuanDiT(args,
+                       input_size=latent_size,
+                       **model_config,
+                       ).half().to("cuda")
+    state_dict = torch.load(
+        model_path, map_location=lambda storage, loc: storage)
+    model.load_state_dict(state_dict)
+
+    if lora_path is not None:
+        from peft import PeftConfig
+
+        # 查询后缀
+        if lora_path.lower().endswith(".safetensors"):
+            from safetensors.torch import load_file
+            adapter_state_dict = load_file(lora_path)
+        else:
+            adapter_state_dict = torch.load(lora_path)
+
+        peft_config = PeftConfig()
+
+        # 相同目录下同名的json文件
+        lora_json_path = os.path.splitext(lora_path)[0] + ".json"
+        if not os.path.exists(lora_json_path):
+            raise Exception(f"未找到对应的json文件: {lora_json_path}")
+        with open(lora_json_path, "r", encoding="utf-8") as f:
+            loaded_attributes = json.load(f)
+
+        for key, value in loaded_attributes.items():
+            setattr(peft_config, key, value)
+
+        model.load_adapter(
+            adapter_state_dict=adapter_state_dict,
+            peft_config=peft_config,
+        )
+        model.merge_and_unload()
+
+    return model
+
+
+def clean_unet():
+    unet_data = Utils.cache_get("HYDiT_UNET")
+    if unet_data is not None:
+        unet_data["model"].cpu()
+        Utils.cache_set("HYDiT_UNET", None)
+        torch.cuda.empty_cache()
+
+
+def clean_vae():
+    vae_data = Utils.cache_get("HYDiT_VAE_EMA")
+    if vae_data is not None:
+        vae_data["model"].cpu()
+        Utils.cache_set("HYDiT_VAE_EM", None)
+        torch.cuda.empty_cache()
+
+
+def clean_clip_text_encoder():
+    clip_text_encoder = Utils.cache_get("HYDiT_CLIP_TEXT_ENCODER")
+    if clip_text_encoder is not None:
+        clip_text_encoder["model"].cpu()
+        Utils.cache_set("HYDiT_CLIP_TEXT_ENCODER", None)
+        torch.cuda.empty_cache()
+
+
+def clean_t5_encoder():
+    t5_encoder = Utils.cache_get("HYDiT_T5_ENCODER")
+    if t5_encoder is not None:
+        t5_encoder["model"].cpu()
+        Utils.cache_set("HYDiT_T5_ENCODER", None)
+        torch.cuda.empty_cache()
+
+
+from torch import nn
+
+
+class CustomizeEmbedsModel(nn.Module):
+    dtype = torch.float16
+    x = torch.zeros(1, 1, 256, 2048)
+
+    def __init__(self, *args, **kwargs):
+        super().__init__()
+
+    def to(self, *args, **kwargs):
+        self.dtype = torch.float16
+        return self
+
+    def forward(self, *args, **kwargs):
+        if self.output_hidden_states or kwargs.get("output_hidden_states", False):
+            return {
+                "hidden_states": self.x.to("cuda"),
+                "input_ids": torch.zeros(1, 1),
+            }
+        return self.x
+
+
+class CustomizeTokenizer(dict):
+
+    added_tokens_encoder = []
+    input_ids = torch.zeros(1, 256)
+    attention_mask = torch.zeros(1, 256)
+
+    def __init__(self):
+        self['added_tokens_encoder'] = self.added_tokens_encoder
+        self['input_ids'] = self.input_ids
+        self['attention_mask'] = self.attention_mask
+
+    def tokenize(self, text):
+        return text
+
+    def __call__(self, *args, **kwargs):
+        return self
+
+
+class CustomizeEmbeds():
+    def __init__(self):
+        super().__init__()
+        self.tokenizer = CustomizeTokenizer()
+        self.model = CustomizeEmbedsModel()
+        self.max_length = 256
+
+
+def MZ_HYDiTSimpleT2I_call(args={}):
+    check_required()
+    args = check_model_auto_download(args)
+
+    HYDiT_tool_dir = os.path.join(
+        Utils.get_minus_zone_models_path(), "train_tools", "HunyuanDiT")
+    if HYDiT_tool_dir not in sys.path:
+        sys.path.append(HYDiT_tool_dir)
+
+    import hydit.inference
+    from hydit.inference import SAMPLER_FACTORY, HUNYUAN_DIT_CONFIG, get_fill_resize_and_crop, get_2d_rotary_pos_embed
+    from hydit.modules.text_encoder import MT5Embedder
+    from hydit.utils.tools import set_seeds
+    from PIL import Image
+    from diffusers import schedulers, AutoencoderKL
+    from transformers import BertModel, BertTokenizer
+
+    width = args.get("width")
+    height = args.get("height")
+
+    unet_path = args.get("unet_path")
+    lora_path = args.get("lora_path")
+    unet_cache_key = f"HYDiT_UNET"
+    unet_data = Utils.cache_get(unet_cache_key)
+    if unet_data is None or unet_data.get("unet_path") != unet_path or unet_data.get("lora_path") != lora_path:
+        clean_unet()
+        _lora_path = lora_path if lora_path != "none" else None
+        unet = get_model_from_path(
+            args.get("unet_path"), _lora_path, width, height)
+        Utils.cache_set(unet_cache_key, {
+            "model": unet,
+            "unet_path": unet_path,
+            "lora_path": lora_path,
+        })
+    else:
+        unet = unet_data["model"]
+
+    text_encoder_path = args.get("text_encoder_path")
+    clip_text_encoder_data = Utils.cache_get("HYDiT_CLIP_TEXT_ENCODER")
+
+    if clip_text_encoder_data is None or clip_text_encoder_data.get("text_encoder_path") != text_encoder_path:
+        clean_clip_text_encoder()
+        clip_text_encoder = BertModel.from_pretrained(
+            text_encoder_path, False, revision=None, local_files_only=True).to("cuda")
+        Utils.cache_set("HYDiT_CLIP_TEXT_ENCODER", {
+            "model": clip_text_encoder,
+            "text_encoder_path": text_encoder_path,
+        })
+    else:
+        clip_text_encoder = clip_text_encoder_data["model"]
+
+    tokenizer_path = args.get("tokenizer_path")
+    text_tokenizer = BertTokenizer.from_pretrained(
+        tokenizer_path, revision=None, local_files_only=True)
+
+    vae_ema_path = args.get("vae_ema_path")
+    vae_ema_data = Utils.cache_get("HYDiT_VAE_EMA")
+    if vae_ema_data is None or vae_ema_data.get("vae_ema_path") != vae_ema_path:
+        clean_vae()
+        if os.path.isdir(vae_ema_path):
+            vae = AutoencoderKL.from_pretrained(
+                vae_ema_path, local_files_only=True).to("cuda")
+        else:
+            vae = AutoencoderKL.from_single_file(
+                vae_ema_path, local_files_only=True).to("cuda")
+
+        Utils.cache_set("HYDiT_VAE_EMA", {
+            "model": vae,
+            "vae_ema_path": vae_ema_path,
+        })
+    else:
+        vae = vae_ema_data["model"]
+
+    t5_encoder_path = args.get("t5_encoder_path")
+    if t5_encoder_path == "none":
+        t5_encoder = CustomizeEmbeds()
+    else:
+        t5_encoder_data = Utils.cache_get("HYDiT_T5_ENCODER")
+        if t5_encoder_data is None or t5_encoder_data.get("t5_encoder_path") != t5_encoder_path:
+            clean_t5_encoder()
+            t5_encoder = MT5Embedder(
+                t5_encoder_path, torch_dtype=torch.float16, max_length=256)
+            Utils.cache_set("HYDiT_T5_ENCODER", {
+                "model": t5_encoder,
+                "t5_encoder_path": t5_encoder_path,
+            })
+        else:
+            t5_encoder = t5_encoder_data["model"]
+
+    sampler = args.get("scheduler")
+    scheduler = SAMPLER_FACTORY[sampler]['scheduler']
+    kwargs = SAMPLER_FACTORY[sampler]['kwargs']
+    # Build scheduler according to the sampler.
+    scheduler_class = getattr(schedulers, scheduler)
+    scheduler = scheduler_class(**kwargs)
+
+    scheduler.set_timesteps(args.get("steps"), "cuda")
+
+    from hydit.diffusion.pipeline import StableDiffusionPipeline
+    pipeline = StableDiffusionPipeline(vae=vae,
+                                       text_encoder=clip_text_encoder,
+                                       tokenizer=text_tokenizer,
+                                       unet=unet,
+                                       scheduler=scheduler,
+                                       feature_extractor=None,
+                                       safety_checker=None,
+                                       requires_safety_checker=False,
+                                       progress_bar_config=None,
+                                       embedder_t5=t5_encoder,
+                                       infer_mode="torch",
+                                       )
+
+    pipeline = pipeline.to("cuda")
+
+    seed = args.get("seed", 0)
+    target_height = int((height // 16) * 16)
+    target_width = int((width // 16) * 16)
+    prompt = args.get("prompt", "").strip()
+    negative_prompt = args.get("negative_prompt", "").strip()
+
+    batch_size = 1
+    style = torch.as_tensor([0, 0] * batch_size, device="cuda")
+
+    src_size_cond = (target_width, target_height)
+    size_cond = list(src_size_cond) + [target_width, target_height, 0, 0]
+    image_meta_size = torch.as_tensor(
+        [size_cond] * 2 * batch_size, device="cuda",)
+
+    def calc_rope(height, width):
+        model_config = HUNYUAN_DIT_CONFIG["DiT-g/2"]
+        patch_size = model_config['patch_size']
+        head_size = model_config['hidden_size'] // model_config['num_heads']
+        th = height // 8 // patch_size
+        tw = width // 8 // patch_size
+        base_size = 512 // 8 // patch_size
+        start, stop = get_fill_resize_and_crop((th, tw), base_size)
+        sub_args = [start, stop, (th, tw)]
+        rope = get_2d_rotary_pos_embed(head_size, *sub_args)
+        return rope
+
+    freqs_cis_img = calc_rope(target_height, target_width)
+    guidance_scale = args.get("cfg", 7.0)
+    infer_steps = args.get("steps", 20)
+
+    with torch.inference_mode():
+        with torch.cuda.amp.autocast():
+
+            pbar = Utils.progress_bar(0, "sdxl")
+            preview = pbar.get_previewer()
+
+            def callback(step: int, timestep: int, latents: torch.FloatTensor, pred_x0):
+                try:
+                    pil_img = preview.decode_latent_to_preview_image(
+                        None,
+                        latents,
+                    )[1]
+                    pbar.update(step, infer_steps, pil_img)
+                except Exception as e:
+                    print("decode_tensors error:", e)
+            generator = set_seeds(seed, device="cuda")
+            samples = pipeline(
+                height=height,
+                width=width,
+                prompt=prompt,
+                negative_prompt=negative_prompt,
+                num_images_per_prompt=batch_size,
+                guidance_scale=guidance_scale,
+                num_inference_steps=infer_steps,
+                style=style,
+                return_dict=False,
+                generator=generator,
+                use_fp16=True,
+                learn_sigma=True,
+                freqs_cis_img=freqs_cis_img,
+                image_meta_size=image_meta_size,
+                callback=callback,
+                callback_steps=2,
+            )[0]
+
+            if type(samples) == list:
+                pil_image = samples[0]
+            else:
+                pil_image = samples
+
+            tensor_image = Utils.pil2tensor(pil_image)
+
+            keep_device = args.get("keep_device", "disable") == "enable"
+            if not keep_device:
+                del pipeline
+                del unet
+                del clip_text_encoder
+                del vae
+                del t5_encoder
+                clean_unet()
+                clean_clip_text_encoder()
+                clean_vae()
+                torch.cuda.empty_cache()
+
+            return (Utils.list_tensor2tensor([tensor_image]),)

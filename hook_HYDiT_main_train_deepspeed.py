@@ -287,9 +287,9 @@ def Core(args):
     )
 
     try:
-        from .hook_HYDiT_utils import VAE_EMA_PATH, TEXT_ENCODER, TOKENIZER, T5_ENCODER, easy_sample_images, model_resume, PBar
+        from .hook_HYDiT_utils import VAE_EMA_PATH, TEXT_ENCODER, TOKENIZER, T5_ENCODER, easy_sample_images, model_resume, PBar, CustomizeEmbeds
     except:
-        from hook_HYDiT_utils import VAE_EMA_PATH, TEXT_ENCODER, TOKENIZER, T5_ENCODER, easy_sample_images, model_resume, PBar
+        from hook_HYDiT_utils import VAE_EMA_PATH, TEXT_ENCODER, TOKENIZER, T5_ENCODER, easy_sample_images, model_resume, PBar, CustomizeEmbeds
 
     # Setup VAE
     logger.info(f"    Loading vae from {VAE_EMA_PATH}")
@@ -304,8 +304,11 @@ def Core(args):
     # Setup T5 text encoder
     from hydit.modules.text_encoder import MT5Embedder
     mt5_path = T5_ENCODER['MT5']
-    embedder_t5 = MT5Embedder(
-        mt5_path, torch_dtype=T5_ENCODER['torch_dtype'], max_length=args.text_len_t5)
+    if mt5_path is None:
+        embedder_t5 = CustomizeEmbeds()
+    else:
+        embedder_t5 = MT5Embedder(
+            mt5_path, torch_dtype=T5_ENCODER['torch_dtype'], max_length=args.text_len_t5)
     tokenizer_t5 = embedder_t5.tokenizer
     text_encoder_t5 = embedder_t5.model
 
@@ -550,10 +553,10 @@ def Core(args):
                 gc.collect()
 
             pbar.step(
-                f"Epoch {epoch}, step {step}, loss {loss.item():.4f}, mean_loss {running_loss / step:.4f}", epoch * len(loader), train_steps)
+                f"Epoch {epoch}, step {step}, loss {loss.item():.4f}, mean_loss {running_loss / step:.4f}", args.epochs * len(loader), train_steps)
 
             if (train_steps % args.ckpt_every == 0 or train_steps % args.ckpt_latest_every == 0  # or train_steps == args.max_training_steps
-                    ) and train_steps > 0:
+                ) and train_steps > 0:
                 easy_sample_images(args, vae, text_encoder, tokenizer, model, embedder_t5,
                                    target_height=768, target_width=1280, train_steps=train_steps)
                 save_checkpoint(args, rank, logger, model, ema,

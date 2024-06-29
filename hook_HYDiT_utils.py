@@ -2,6 +2,7 @@
 
 import json
 import os
+import time
 import torch
 
 
@@ -38,7 +39,7 @@ def set_text_encoder_path(path):
 
 
 T5_ENCODER = {
-    'MT5': 'ckpts/t2i/mt5',
+    'MT5': None,
     'attention_mask': True,
     'layer_index': -1,
     'attention_pool': True,
@@ -82,6 +83,8 @@ def easy_sample_images(
     from hydit.constants import SAMPLER_FACTORY
     from hydit.modules.posemb_layers import get_fill_resize_and_crop, get_2d_rotary_pos_embed
     from hydit.modules.models import HUNYUAN_DIT_CONFIG
+
+    import traceback
     with torch.no_grad():
 
         workspace_dir = TRAIN_CONFIG.get("workspace_dir")
@@ -130,6 +133,19 @@ def easy_sample_images(
                                            requires_safety_checker=False,
                                            embedder_t5=embedder_t5,
                                            ).to("cuda")
+        # attr _execution_device is not defined
+        if not hasattr(pipeline, "_execution_device"):
+            time.sleep(1)
+            pipeline = StableDiffusionPipeline(vae=vae,
+                                               text_encoder=text_encoder,
+                                               tokenizer=tokenizer,
+                                               unet=model.module,
+                                               scheduler=scheduler,
+                                               feature_extractor=None,
+                                               safety_checker=None,
+                                               requires_safety_checker=False,
+                                               embedder_t5=embedder_t5,
+                                               ).to("cuda")
 
         style = torch.as_tensor([0, 0] * batch_size, device="cuda")
 
@@ -152,6 +168,7 @@ def easy_sample_images(
             freqs_cis_img = calc_rope(height, width)
 
             try:
+
                 samples = pipeline(
                     height=height,
                     width=width,
@@ -170,7 +187,9 @@ def easy_sample_images(
 
                 pass
             except Exception as e:
-                print(f"Failed to sample images: {e}")
+                print(f"Failed to sample images: {e} ")
+                # 打印堆栈信息
+                traceback.print_exc()
                 continue
 
             # print("samples:",type(samples),)
@@ -276,3 +295,52 @@ class PBar:
             "total_steps": total_steps,
             # "latent": noise_pred_latent_path,
         })
+
+
+from torch import nn
+
+
+class CustomizeEmbedsModel(nn.Module):
+    dtype = torch.float16
+    x = torch.zeros(1, 1, 256, 2048)
+
+    def __init__(self, *args, **kwargs):
+        super().__init__()
+
+    def to(self, *args, **kwargs):
+        self.dtype = torch.float16
+        return self
+
+    def forward(self, *args, **kwargs):
+        if self.output_hidden_states or kwargs.get("output_hidden_states", False):
+            return {
+                "hidden_states": self.x.to("cuda"),
+                "input_ids": torch.zeros(1, 1),
+            }
+        return self.x
+
+
+class CustomizeTokenizer(dict):
+
+    added_tokens_encoder = []
+    input_ids = torch.zeros(1, 256)
+    attention_mask = torch.zeros(1, 256)
+
+    def __init__(self):
+        self['added_tokens_encoder'] = self.added_tokens_encoder
+        self['input_ids'] = self.input_ids
+        self['attention_mask'] = self.attention_mask
+
+    def tokenize(self, text):
+        return text
+
+    def __call__(self, *args, **kwargs):
+        return self
+
+
+class CustomizeEmbeds():
+    def __init__(self):
+        super().__init__()
+        self.tokenizer = CustomizeTokenizer()
+        self.model = CustomizeEmbedsModel().to("cuda")
+        self.max_length = 256

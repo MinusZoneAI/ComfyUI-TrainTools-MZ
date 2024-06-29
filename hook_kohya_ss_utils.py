@@ -216,10 +216,6 @@ def hook_kohya_ss():
     import library.utils
     import library.train_util
     import library.sdxl_train_util
-    import library.model_util
-
-    library.model_util.convert_controlnet_state_dict_to_diffusers = convert_controlnet_state_dict_to_diffusers
-
     library.utils.setup_logging = setup_logging
 
     library.train_util.load_tokenizer = load_tokenizers
@@ -354,7 +350,7 @@ def _load_target_model(args: argparse.Namespace, weight_dtype, device="cpu", une
     return text_encoder, vae, unet, load_stable_diffusion_format
 
 
-def generate_image(pipe_class, cmd_args, accelerator, vae, tokenizer, text_encoder, unet, epoch, prompt_dict_list, controlnet=None):
+def generate_image(pipe_class, cmd_args, accelerator, vae, tokenizer, text_encoder, unet, epoch, prompt_dict_list):
     import library.train_util
 
     # for multi gpu distributed inference. this is a singleton, so it's safe to use it here
@@ -372,10 +368,6 @@ def generate_image(pipe_class, cmd_args, accelerator, vae, tokenizer, text_encod
         sample_sampler="k_euler",
         v_parameterization=cmd_args.v_parameterization,
     )
-
-    # print("unet.config._diffusers_version:", unet.config._diffusers_version)
-    # print("unet.config:", unet.config)
-    # input("press enter to continue...")
 
     pipeline = pipe_class(
         text_encoder=text_encoder,
@@ -402,6 +394,7 @@ def generate_image(pipe_class, cmd_args, accelerator, vae, tokenizer, text_encod
     save_dir = sample_images_path
     prompt_replacement = None
     steps = 0
+    controlnet = None
 
     # save random state to restore later
     rng_state = torch.get_rng_state()
@@ -413,9 +406,6 @@ def generate_image(pipe_class, cmd_args, accelerator, vae, tokenizer, text_encod
 
     with torch.no_grad():
         for prompt_dict in prompt_dict_list:
-            print("prompt_dict:", json.dumps(
-                prompt_dict, indent=4, ensure_ascii=False))
-
             library.train_util.sample_image_inference(
                 accelerator, cmd_args, pipeline, save_dir, prompt_dict, epoch, steps, prompt_replacement, controlnet=controlnet
             )
@@ -427,42 +417,3 @@ def generate_image(pipe_class, cmd_args, accelerator, vae, tokenizer, text_encod
     if cuda_rng_state is not None:
         torch.cuda.set_rng_state(cuda_rng_state)
     vae.to(org_vae_device)
-
-
-def convert_controlnet_state_dict_to_diffusers(controlnet_state_dict):
-    import library.model_util as model_util
-    unet_conversion_map, unet_conversion_map_resnet, unet_conversion_map_layer = model_util.controlnet_conversion_map()
-
-    mapping = {k: k for k in controlnet_state_dict.keys()}
-
-    # print("controlnet_state_dict:", controlnet_state_dict.keys())
-    keys_first = list(controlnet_state_dict.keys())[0]
-
-    if keys_first.startswith("control_model."):
-        new_mapping = {}
-        for k, v in mapping.items():
-            new_mapping[k.replace("control_model.", "")] = v.replace(
-                "control_model.", "")
-        mapping = new_mapping
-
-    for sd_name, diffusers_name in unet_conversion_map:
-        mapping[sd_name] = diffusers_name
-    for k, v in mapping.items():
-        for sd_part, diffusers_part in unet_conversion_map_layer:
-            v = v.replace(sd_part, diffusers_part)
-        mapping[k] = v
-    for k, v in mapping.items():
-        if "resnets" in v:
-            for sd_part, diffusers_part in unet_conversion_map_resnet:
-                v = v.replace(sd_part, diffusers_part)
-            mapping[k] = v
-
-    if keys_first.startswith("control_model."):
-        new_state_dict = {
-            v: controlnet_state_dict[
-                f"control_model.{k}"] for k, v in mapping.items()}
-    else:
-        new_state_dict = {
-            v: controlnet_state_dict[k] for k, v in mapping.items()}
-
-    return new_state_dict

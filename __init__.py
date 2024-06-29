@@ -539,7 +539,7 @@ class MZ_HYDiTTrain:
                 "vae_ema_path": (["auto"] + folders + vae_models, {"default": "auto"}),
                 "text_encoder_path": (["auto"] + folders, {"default": "auto"}),
                 "tokenizer_path": (["auto"] + folders, {"default": "auto"}),
-                "t5_encoder_path": (["auto"] + folders, {"default": "auto"}),
+                "t5_encoder_path": (["none", "auto"] + folders, {"default": "auto"}),
                 "resolution": ("INT", {"default": 1024}),
                 "batch_size": ("INT", {"default": 1}),
                 "epochs": ("INT", {"default": 50}),
@@ -561,7 +561,7 @@ class MZ_HYDiTTrain:
     FUNCTION = "start"
 
     MZ_DESC = """
-base_size The base resolution (n, n) from which to create multiple resolutions | Recommended values: 256/512/1024 
+base_size The base resolution (n, n) from which to create multiple resolutions | Recommended values: 256/512/1024
 """
 
     OUTPUT_NODE = True
@@ -575,6 +575,66 @@ base_size The base resolution (n, n) from which to create multiple resolutions |
 
 NODE_CLASS_MAPPINGS["MZ_HYDiTTrain"] = MZ_HYDiTTrain
 NODE_DISPLAY_NAME_MAPPINGS["MZ_HYDiTTrain"] = f"{AUTHOR_NAME} - HYDiTTrain"
+
+
+class MZ_HYDiTSimpleT2I:
+    @classmethod
+    def INPUT_TYPES(s):
+        hunyuan_models_path = os.path.join(
+            Utils.get_comfyui_models_path(), "hunyuan")
+        os.makedirs(hunyuan_models_path, exist_ok=True)
+
+        models = Utils.get_models_by_folder(hunyuan_models_path)
+        folders = Utils.get_folders_by_folder(hunyuan_models_path)
+
+        vae_models = Utils.get_models_by_folder(
+            os.path.join(Utils.get_comfyui_models_path(), "vae"))
+        unet_models = Utils.get_models_by_folder(
+            os.path.join(Utils.get_comfyui_models_path(), "unet"))
+
+        comfyui_full_loras = []
+        comfyui_loras = folder_paths.get_filename_list("loras")
+        for lora in comfyui_loras:
+            lora_path = folder_paths.get_full_path("loras", lora)
+            comfyui_full_loras.append(lora_path)
+
+        return {
+            "required": {
+                "unet_path": (["auto"] + models + unet_models, {"default": "auto"}),
+                "vae_ema_path": (["auto"] + folders + vae_models, {"default": "auto"}),
+                "text_encoder_path": (["auto"] + folders, {"default": "auto"}),
+                "tokenizer_path": (["auto"] + folders, {"default": "auto"}),
+                "t5_encoder_path": (["none", "auto"] + folders, {"default": "auto"}),
+                "lora_path": (["none"] + comfyui_full_loras, {"default": "none"}),
+                "seed": ("INT", {"default": 0}),
+                "steps": ("INT", {"default": 20}),
+                "cfg": ("FLOAT", {"default": 8.0, "min": 0.0, "max": 100.0, "step": 0.1, "round": 0.01}),
+                "scheduler": ([
+                    "ddpm", "ddim", "dpmms",
+                ], {"default": "ddpm"}),
+                "prompt": ("STRING", {"default:": "", "dynamicPrompts": True, "multiline": True}),
+                "negative_prompt": ("STRING", {"default:": "", "dynamicPrompts": True, "multiline": True}),
+                "width": ("INT", {"default": 512, "max": 8192, "step": 16}),
+                "height": ("INT", {"default": 512, "max": 8192, "step": 16}),
+                "keep_device": (["enable", "disable"], {"default": "enable"}),
+            }
+        }
+
+    RETURN_TYPES = ("IMAGE",)
+
+    RETURN_NAMES = ("images",)
+
+    FUNCTION = "start"
+
+    CATEGORY = CATEGORY_NAME
+
+    def start(self, **kwargs):
+        importlib.reload(mz_train_tools_core_HYDiT)
+        return mz_train_tools_core_HYDiT.MZ_HYDiTSimpleT2I_call(kwargs)
+
+
+NODE_CLASS_MAPPINGS["MZ_HYDiTSimpleT2I"] = MZ_HYDiTSimpleT2I
+NODE_DISPLAY_NAME_MAPPINGS["MZ_HYDiTSimpleT2I"] = f"{AUTHOR_NAME} - HYDiTSimpleT2I"
 
 
 class MZ_TrainToolsDebug:

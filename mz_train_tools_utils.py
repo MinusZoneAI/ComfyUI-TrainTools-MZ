@@ -710,12 +710,12 @@ class Utils:
                 return previewer
 
             def update(self, step, total_steps, pil_img=None):
-                pil_img_info = ("JPEG", pil_img, 512)
-                if pil_img is None:
-                    pil_img_info = None
-                if type(pil_img) == Tuple or type(pil_img) == list or type(pil_img) == tuple:
-                    pil_img_info = pil_img
                 try:
+                    pil_img_info = ("JPEG", pil_img, 512)
+                    if pil_img is None:
+                        pil_img_info = None
+                    if type(pil_img) == Tuple or type(pil_img) == list or type(pil_img) == tuple:
+                        pil_img_info = pil_img
                     # print("pil_img_info:", type(pil_img), pil_img_info)
                     # print("step:", step, "total_steps:", total_steps)
                     self.pbar.update_absolute(
