@@ -215,7 +215,8 @@ def check_model_auto_download(args):
             download_file = "HunyuanDiT/t2i/model/pytorch_model_module.pt"
         download_fullpath = os.path.join(
             hunyuan_base_path, download_file)
-        os.makedirs(os.path.dirname(download_fullpath), exist_ok=True)
+        if not os.path.exists(download_fullpath):
+            os.makedirs(os.path.dirname(download_fullpath), exist_ok=True)
 
         if os.path.exists(download_fullpath):
             args["unet_path"] = download_fullpath
@@ -237,7 +238,7 @@ def check_model_auto_download(args):
 
         for download_file in download_files:
             download_fullpath = os.path.join(
-                hunyuan_base_path, download_file) 
+                hunyuan_base_path, download_file)
             if not os.path.exists(download_fullpath):
                 os.makedirs(os.path.dirname(download_fullpath), exist_ok=True)
 
