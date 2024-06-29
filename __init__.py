@@ -491,14 +491,14 @@ class MZ_HYDiTAdvConfig:
     def INPUT_TYPES(s):
         return {
             "required": {
-                "lr": ("FLOAT", {"default": 1e-5}),
+                "lr": ("STRING", {"default": "1e-5"}),
                 "rope_real": (["enable", "disable"], {"default": "enable"}),
                 # ['Wqkv', 'q_proj', 'kv_proj', 'out_proj']
                 "target_modules_Wqkv": (["enable", "disable"], {"default": "enable"}),
                 "target_modules_q_proj": (["enable", "disable"], {"default": "enable"}),
                 "target_modules_kv_proj": (["enable", "disable"], {"default": "enable"}),
-                "target_modules_out_proj": (["enable", "disable"], {"default": "enable"}),
-                "warmup_min_lr": ("FLOAT", {"default": 1e-6}),
+                "target_modules_out_proj": (["enable", "disable"], {"default": "enable"}), 
+                "warmup_min_lr": ("STRING", {"default": "1e-6"}),
                 # parser.add_argument("--warmup-num-steps", type=float, default=0)
                 # parser.add_argument("--weight-decay", type=float, default=0, help="weight-decay in optimizer")
                 "weight_decay": ("FLOAT", {"default": 0}),

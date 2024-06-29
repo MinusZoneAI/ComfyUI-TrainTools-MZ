@@ -349,6 +349,12 @@ def MZ_HYDiTTrain_call(args={}):
     check_required()
 
     advanced_config = args.get("advanced_config", {})
+    fix_float_keys = ["lr", "warmup_min_lr",
+                      "warmup_max_lr", "weight_decay", "warmup_num_steps",]
+    for key in fix_float_keys:
+        if key in advanced_config:
+            if isinstance(advanced_config[key], str):
+                advanced_config[key] = float(advanced_config[key]) 
 
     args = check_model_auto_download(args)
     # raise Exception(args)
