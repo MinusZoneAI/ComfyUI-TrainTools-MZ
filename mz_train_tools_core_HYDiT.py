@@ -237,8 +237,9 @@ def check_model_auto_download(args):
 
         for download_file in download_files:
             download_fullpath = os.path.join(
-                hunyuan_base_path, download_file)
-            os.makedirs(os.path.dirname(download_fullpath), exist_ok=True)
+                hunyuan_base_path, download_file) 
+            if not os.path.exists(download_fullpath):
+                os.makedirs(os.path.dirname(download_fullpath), exist_ok=True)
 
             if not os.path.exists(download_fullpath):
                 Utils.download_file(
@@ -260,7 +261,8 @@ def check_model_auto_download(args):
         for download_file in download_files:
             download_fullpath = os.path.join(
                 hunyuan_base_path, download_file)
-            os.makedirs(os.path.dirname(download_fullpath), exist_ok=True)
+            if not os.path.exists(download_fullpath):
+                os.makedirs(os.path.dirname(download_fullpath), exist_ok=True)
 
             if not os.path.exists(download_fullpath):
                 Utils.download_file(
@@ -282,7 +284,8 @@ def check_model_auto_download(args):
         for download_file in download_files:
             download_fullpath = os.path.join(
                 hunyuan_base_path, download_file)
-            os.makedirs(os.path.dirname(download_fullpath), exist_ok=True)
+            if not os.path.exists(download_fullpath):
+                os.makedirs(os.path.dirname(download_fullpath), exist_ok=True)
 
             if not os.path.exists(download_fullpath):
                 Utils.download_file(
@@ -304,7 +307,8 @@ def check_model_auto_download(args):
         for download_file in download_files:
             download_fullpath = os.path.join(
                 hunyuan_base_path, download_file)
-            os.makedirs(os.path.dirname(download_fullpath), exist_ok=True)
+            if not os.path.exists(download_fullpath):
+                os.makedirs(os.path.dirname(download_fullpath), exist_ok=True)
 
             if not os.path.exists(download_fullpath):
                 Utils.download_file(
