@@ -114,6 +114,7 @@ if __name__ == "__main__":
 
     margs.target_ratios = train_config.get(
         "target_ratios", ['1:1', '3:4', '4:3', '16:9', '9:16'])
+    
     margs.rope_img = train_config.get("rope_img", "base1024")
 
     margs.image_size = train_config.get("image_size", 1024)
@@ -133,7 +134,7 @@ if __name__ == "__main__":
     margs.use_zero_stage = train_config.get("use_zero_stage", 2)
 
     margs.global_batch_size = train_config.get("global_batch_size", 1)
-    
+
     margs.deepspeed = True
 
     margs.results_dir = train_config.get("results_dir")

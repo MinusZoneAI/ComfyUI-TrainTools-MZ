@@ -497,7 +497,7 @@ class MZ_HYDiTAdvConfig:
                 "target_modules_Wqkv": (["enable", "disable"], {"default": "enable"}),
                 "target_modules_q_proj": (["enable", "disable"], {"default": "enable"}),
                 "target_modules_kv_proj": (["enable", "disable"], {"default": "enable"}),
-                "target_modules_out_proj": (["enable", "disable"], {"default": "enable"}), 
+                "target_modules_out_proj": (["enable", "disable"], {"default": "enable"}),
                 "warmup_min_lr": ("STRING", {"default": "1e-6"}),
                 # parser.add_argument("--warmup-num-steps", type=float, default=0)
                 # parser.add_argument("--weight-decay", type=float, default=0, help="weight-decay in optimizer")
@@ -576,7 +576,7 @@ class MZ_HYDiTTrain:
                 "text_encoder_path": (["auto"] + folders, {"default": "auto"}),
                 "tokenizer_path": (["auto"] + folders, {"default": "auto"}),
                 "t5_encoder_path": (["none", "auto"] + folders, {"default": "none"}),
-                "resolution": ("INT", {"default": 1024}),
+                "resolution": ("INT", {"default": 1024, "step": 16}),
                 "batch_size": ("INT", {"default": 1}),
                 "epochs": ("INT", {"default": 50}),
                 "ckpt_every": ("INT", {"default": 500}),
