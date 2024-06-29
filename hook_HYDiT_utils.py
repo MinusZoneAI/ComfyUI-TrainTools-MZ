@@ -151,23 +151,23 @@ def easy_sample_images(
 
             freqs_cis_img = calc_rope(height, width)
 
-            samples = pipeline(
-                height=height,
-                width=width,
-                prompt=prompt,
-                negative_prompt=negative_prompt,
-                num_images_per_prompt=batch_size,
-                guidance_scale=guidance_scale,
-                num_inference_steps=infer_steps,
-                style=style,
-                return_dict=False,
-                use_fp16=True,
-                learn_sigma=args.learn_sigma,
-                freqs_cis_img=freqs_cis_img,
-                image_meta_size=image_meta_size,
-            )[0]
-
             try:
+                samples = pipeline(
+                    height=height,
+                    width=width,
+                    prompt=prompt,
+                    negative_prompt=negative_prompt,
+                    num_images_per_prompt=batch_size,
+                    guidance_scale=guidance_scale,
+                    num_inference_steps=infer_steps,
+                    style=style,
+                    return_dict=False,
+                    use_fp16=True,
+                    learn_sigma=args.learn_sigma,
+                    freqs_cis_img=freqs_cis_img,
+                    image_meta_size=image_meta_size,
+                )[0]
+
                 pass
             except Exception as e:
                 print(f"Failed to sample images: {e}")
