@@ -32,22 +32,22 @@ def MZ_HYDiTInitWorkspace_call(args={}):
     mz_dir = Utils.get_minus_zone_models_path()
     git_url = "https://github.com/Tencent/HunyuanDiT"
     source = args.get("source", "github")
-    kohya_ss_lora_dir = os.path.join(mz_dir, "train_tools", "HunyuanDiT")
+    hunyuan_lora_dir = os.path.join(mz_dir, "train_tools", "HunyuanDiT")
     if git_accelerate_urls.get(source, None) is not None:
         git_url = f"https://{git_accelerate_urls[source]}/Tencent/HunyuanDiT"
     try:
-        if not os.path.exists(kohya_ss_lora_dir) or not os.path.exists(os.path.join(kohya_ss_lora_dir, ".git")):
+        if not os.path.exists(hunyuan_lora_dir) or not os.path.exists(os.path.join(hunyuan_lora_dir, ".git")):
             subprocess.run(
-                ["git", "clone", "--depth", "1", git_url, kohya_ss_lora_dir], check=True)
+                ["git", "clone", "--depth", "1", git_url, hunyuan_lora_dir], check=True)
 
         # 切换远程分支 git remote set-branches origin 'main'
         branch = args.get("branch", "main")
 
         # 查看本地分支是否一致
         short_result = subprocess.run(
-            ["git", "rev-parse", "--abbrev-ref", "HEAD"], cwd=kohya_ss_lora_dir, stdout=subprocess.PIPE, check=True)
+            ["git", "rev-parse", "--abbrev-ref", "HEAD"], cwd=hunyuan_lora_dir, stdout=subprocess.PIPE, check=True)
         result = subprocess.run(
-            ["git", "rev-parse", "HEAD"], cwd=kohya_ss_lora_dir, stdout=subprocess.PIPE, check=True)
+            ["git", "rev-parse", "HEAD"], cwd=hunyuan_lora_dir, stdout=subprocess.PIPE, check=True)
 
         short_current_branch = short_result.stdout.decode().strip()
         long_current_branch = result.stdout.decode().strip()
@@ -57,16 +57,24 @@ def MZ_HYDiTInitWorkspace_call(args={}):
 
         if branch != result.stdout.decode() and branch != short_result.stdout.decode():
             subprocess.run(
-                ["git", "remote", "set-branches", "origin", branch], cwd=kohya_ss_lora_dir, check=True)
+                ["git", "remote", "set-branches", "origin", branch], cwd=hunyuan_lora_dir, check=True)
             subprocess.run(
-                ["git", "fetch", "--depth", "1", "origin", branch], cwd=kohya_ss_lora_dir, check=True)
+                ["git", "fetch", "--depth", "1", "origin", branch], cwd=hunyuan_lora_dir, check=True)
 
             # 恢复所有文件
             subprocess.run(
-                ["git", "checkout", "."], cwd=kohya_ss_lora_dir, check=True)
+                ["git", "checkout", "."], cwd=hunyuan_lora_dir, check=True)
 
             subprocess.run(
-                ["git", "checkout", branch], cwd=kohya_ss_lora_dir, check=True)
+                ["git", "checkout", branch], cwd=hunyuan_lora_dir, check=True)
+
+        content = None
+        with open(os.path.join(hunyuan_lora_dir, "hydit/diffusion/pipeline.py"), "r", encoding="utf-8") as f:
+            pre_replace = "device = self._execution_device"
+            content = f.read()
+            content = content.replace(pre_replace, "device = 'cuda'")
+        with open(os.path.join(hunyuan_lora_dir, "hydit/diffusion/pipeline.py"), "w", encoding="utf-8") as f:
+            f.write(content)
 
     except Exception as e:
         raise Exception(f"克隆kohya-ss/sd-scripts或者切换分支时出现异常,详细信息请查看控制台...")
@@ -354,7 +362,7 @@ def MZ_HYDiTTrain_call(args={}):
     for key in fix_float_keys:
         if key in advanced_config:
             if isinstance(advanced_config[key], str):
-                advanced_config[key] = float(advanced_config[key]) 
+                advanced_config[key] = float(advanced_config[key])
 
     args = check_model_auto_download(args)
     # raise Exception(args)
