@@ -85,7 +85,7 @@ def easy_sample_images(
     from hydit.modules.models import HUNYUAN_DIT_CONFIG
 
     import traceback
-    with torch.no_grad():
+    with torch.cuda.amp.autocast():
 
         workspace_dir = TRAIN_CONFIG.get("workspace_dir")
         sample_config_file = TRAIN_CONFIG.get("sample_config_file", None)
@@ -132,20 +132,9 @@ def easy_sample_images(
                                            safety_checker=None,
                                            requires_safety_checker=False,
                                            embedder_t5=embedder_t5,
-                                           ).to("cuda")
+                                           )
+        pipeline = pipeline.to("cuda")
         # attr _execution_device is not defined
-        if not hasattr(pipeline, "_execution_device"):
-            time.sleep(1)
-            pipeline = StableDiffusionPipeline(vae=vae,
-                                               text_encoder=text_encoder,
-                                               tokenizer=tokenizer,
-                                               unet=model.module,
-                                               scheduler=scheduler,
-                                               feature_extractor=None,
-                                               safety_checker=None,
-                                               requires_safety_checker=False,
-                                               embedder_t5=embedder_t5,
-                                               ).to("cuda")
 
         style = torch.as_tensor([0, 0] * batch_size, device="cuda")
 
@@ -190,7 +179,7 @@ def easy_sample_images(
                 print(f"Failed to sample images: {e} ")
                 # 打印堆栈信息
                 traceback.print_exc()
-                continue
+                print(f"Failed to sample pipeline: {pipeline} ")
 
             # print("samples:",type(samples),)
             # input("Press Enter to continue...")
@@ -312,7 +301,7 @@ class CustomizeEmbedsModel(nn.Module):
         return self
 
     def forward(self, *args, **kwargs):
-        if self.output_hidden_states or kwargs.get("output_hidden_states", False):
+        if kwargs.get("output_hidden_states", False):
             return {
                 "hidden_states": self.x.to("cuda"),
                 "input_ids": torch.zeros(1, 1),

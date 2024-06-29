@@ -345,7 +345,11 @@ def check_required():
 
 
 def MZ_HYDiTTrain_call(args={}):
+
     check_required()
+
+    advanced_config = args.get("advanced_config", {})
+
     args = check_model_auto_download(args)
     # raise Exception(args)
     resolution = args.get("resolution")
@@ -505,6 +509,21 @@ def MZ_HYDiTTrain_call(args={}):
     datetime = time.strftime("%Y%m%d_%H%M%S", time.localtime())
     output_name = f"{workspace_name}_{datetime}"
 
+    lora_ckpt = args.get("base_lora")
+    if lora_ckpt == "empty":
+        lora_ckpt = None
+    elif lora_ckpt == "latest":
+        lora_ckpt = None
+        loras = search_loras(workspace_dir)
+        if len(loras) > 0:
+            lora_ckpt = loras[0]
+    elif not os.path.exists(lora_ckpt):
+        raise Exception(f"未找到指定的lora文件: {lora_ckpt}")
+
+    if lora_ckpt is not None and lora_ckpt.endswith(".safetensors"):
+        # 文件所在目录
+        lora_ckpt = os.path.dirname(lora_ckpt)
+    print(f"使用指定的lora文件: {lora_ckpt}")
     train_config.update({
         "workspace_name": workspace_name,
         "workspace_dir": workspace_dir,
@@ -524,7 +543,22 @@ def MZ_HYDiTTrain_call(args={}):
         "t5_encoder_path": args.get("t5_encoder_path") if args.get("t5_encoder_path") != "none" else None,
         "results_dir": output_dir,
         "task_flag": output_name,
+        "lora_ckpt": lora_ckpt,
     })
+
+    if "target_modules" in train_config:
+        del train_config["target_modules"]
+    for key in advanced_config:
+        if key.startswith("target_modules_"):
+            if advanced_config[key] == "enable":
+                if "target_modules" not in train_config:
+                    train_config["target_modules"] = []
+                train_config["target_modules"].append(
+                    key.replace("target_modules_", ""))
+        elif advanced_config[key] == "enable" or advanced_config[key] == "disable":
+            train_config[key] = advanced_config[key] == "enable"
+        else:
+            train_config[key] = advanced_config[key]
 
     sample_generate = args.get("sample_generate", "enable")
     sample_prompt = args.get("sample_prompt", "")
@@ -645,7 +679,7 @@ def get_sample_images(train_config):
     return None
 
 
-def get_model_from_path(model_path, lora_path, width, height):
+def get_HunYuanDiT_model_from_path(model_path, lora_path, width, height):
 
     from hydit.modules.models import HunYuanDiT, HUNYUAN_DIT_CONFIG
 
@@ -760,7 +794,7 @@ class CustomizeEmbedsModel(nn.Module):
         return self
 
     def forward(self, *args, **kwargs):
-        if self.output_hidden_states or kwargs.get("output_hidden_states", False):
+        if kwargs.get("output_hidden_states", False):
             return {
                 "hidden_states": self.x.to("cuda"),
                 "input_ids": torch.zeros(1, 1),
@@ -821,7 +855,7 @@ def MZ_HYDiTSimpleT2I_call(args={}):
     if unet_data is None or unet_data.get("unet_path") != unet_path or unet_data.get("lora_path") != lora_path:
         clean_unet()
         _lora_path = lora_path if lora_path != "none" else None
-        unet = get_model_from_path(
+        unet = get_HunYuanDiT_model_from_path(
             args.get("unet_path"), _lora_path, width, height)
         Utils.cache_set(unet_cache_key, {
             "model": unet,
@@ -993,3 +1027,19 @@ def MZ_HYDiTSimpleT2I_call(args={}):
                 torch.cuda.empty_cache()
 
             return (Utils.list_tensor2tensor([tensor_image]),)
+
+
+def search_loras(wdirs):
+    loras = []
+    for wdir in wdirs:
+        for root, dirs, files in os.walk(wdir):
+            for file in files:
+                if file.lower().endswith(".safetensors"):
+                    # 并且在同一目录下有相同名字的json文件
+                    json_file = os.path.splitext(file)[0] + ".json"
+                    if os.path.exists(os.path.join(root, json_file)):
+                        loras.append(os.path.join(root, file))
+
+    # 按时间倒序
+    loras = sorted(loras, key=lambda x: os.path.getmtime(x), reverse=True)
+    return loras

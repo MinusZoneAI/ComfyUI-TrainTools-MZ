@@ -416,7 +416,7 @@ class MZ_HYDiTInitWorkspace:
 
     def start(self, **kwargs):
         importlib.reload(mz_train_tools_core_HYDiT)
-        return mz_train_tools_core_HYDiT.MZ_HYDiTInitWorkspace_call(kwargs)
+        return mz_train_tools_core_HYDiT.MZ_HYDiTInitWorkspace_call(kwargs.copy())
 
 
 NODE_CLASS_MAPPINGS["MZ_HYDiTInitWorkspace"] = MZ_HYDiTInitWorkspace
@@ -449,7 +449,7 @@ class MZ_HYDiTDatasetConfig:
 
     def start(self, **kwargs):
         importlib.reload(mz_train_tools_core_HYDiT)
-        return mz_train_tools_core_HYDiT.MZ_HYDiTDatasetConfig_call(kwargs)
+        return mz_train_tools_core_HYDiT.MZ_HYDiTDatasetConfig_call(kwargs.copy())
 
 
 NODE_CLASS_MAPPINGS["MZ_HYDiTDatasetConfig"] = MZ_HYDiTDatasetConfig
@@ -491,14 +491,40 @@ class MZ_HYDiTAdvConfig:
     def INPUT_TYPES(s):
         return {
             "required": {
-                "learn_sigma": (["enable", "disable"], {"default": "enable"}),
-                "text_states_dim": ("INT", {"default": 1024}),
-                "text_states_dim_t5": ("INT", {"default": 2048}),
-                "text_len": ("INT", {"default": 77}),
-                "text_len_t5": ("INT", {"default": 256}),
-                "norm": (["layer", "instance"], {"default": "layer"}),
-                "infer_mode": (["torch", "deepspeed"], {"default": "torch"}),
-                "use_fp16": (["enable", "disable"], {"default": "enable"}),
+                "lr": ("FLOAT", {"default": 1e-5}),
+                "rope_real": (["enable", "disable"], {"default": "enable"}),
+                # ['Wqkv', 'q_proj', 'kv_proj', 'out_proj']
+                "target_modules_Wqkv": (["enable", "disable"], {"default": "enable"}),
+                "target_modules_q_proj": (["enable", "disable"], {"default": "enable"}),
+                "target_modules_kv_proj": (["enable", "disable"], {"default": "enable"}),
+                "target_modules_out_proj": (["enable", "disable"], {"default": "enable"}),
+                "warmup_min_lr": ("FLOAT", {"default": 1e-6}),
+                # parser.add_argument("--warmup-num-steps", type=float, default=0)
+                # parser.add_argument("--weight-decay", type=float, default=0, help="weight-decay in optimizer")
+                "weight_decay": ("FLOAT", {"default": 0}),
+                "warmup_num_steps": ("FLOAT", {"default": 0}),
+                # parser.add_argument("--uncond-p", type=float, default=0.2,
+                #                     help="The probability of dropping training text used for CLIP feature extraction")
+                # parser.add_argument("--uncond-p-t5", type=float, default=0.2,
+                #                     help="The probability of dropping training text used for mT5 feature extraction")
+                "uncond_p": ("FLOAT", {"default": 0.2}),
+                "uncond_p_t5": ("FLOAT", {"default": 0.2}),
+
+                # parser.add_argument("--use-flash-attn", action="store_true", help="During training, "
+                #                                                                 "flash attention is used to accelerate training.")
+                # parser.add_argument("--no-flash-attn", dest="use_flash_attn",
+                #                     action="store_false", help="During training, flash attention is not used to accelerate training.")
+                # parser.add_argument("--use-zero-stage", type=int, default=1, help="Use AngelPTM zero stage. Support 2 and 3")
+                # parser.add_argument("--grad-accu-steps", type=int, default=1, help="Gradient accumulation steps.")
+                "use_flash_attn": (["enable", "disable"], {"default": "disable"}),
+                "use_zero_stage": ("INT", {"default": 2}),
+                "grad_accu_steps": ("INT", {"default": 1}),
+                #  parser.add_argument("--extra-fp16", action="store_true", help="Use extra fp16 for vae and text_encoder.")
+                "extra_fp16": (["enable", "disable"], {"default": "enable"}),
+                # parser.add_argument("--qk-norm", action="store_true", help="Query Key normalization. See http://arxiv.org/abs/2302.05442 for details.")
+                "qk_norm": (["enable", "disable"], {"default": "enable"}),
+                # parser.add_argument("--norm", type=str, choices=["rms", "laryer"], default="layer", help="Normalization layer type")
+                "norm": (["rms", "layer"], {"default": "layer"}),
             }
         }
 
@@ -510,7 +536,7 @@ class MZ_HYDiTAdvConfig:
     CATEGORY = CATEGORY_NAME
 
     def start(self, **kwargs):
-        return (kwargs,)
+        return (kwargs.copy(),)
 
 
 NODE_CLASS_MAPPINGS["MZ_HYDiTAdvConfig"] = MZ_HYDiTAdvConfig
@@ -532,24 +558,35 @@ class MZ_HYDiTTrain:
             os.path.join(Utils.get_comfyui_models_path(), "vae"))
         unet_models = Utils.get_models_by_folder(
             os.path.join(Utils.get_comfyui_models_path(), "unet"))
+
+        workspaces_root = os.path.join(
+            folder_paths.output_directory, "mz_train_workspaces")
+
+        loras = mz_train_tools_core_HYDiT.search_loras([
+            workspaces_root,
+            os.path.join(Utils.get_comfyui_models_path(), "loras"),
+        ])
+
         return {
             "required": {
                 "workspace_config": ("MZ_TT_HYDiT_WorkspaceConfig",),
                 "unet_path": (["auto"] + models + unet_models, {"default": "auto"}),
+                "ema_to_module": (["enable", "disable"], {"default": "enable"}),
                 "vae_ema_path": (["auto"] + folders + vae_models, {"default": "auto"}),
                 "text_encoder_path": (["auto"] + folders, {"default": "auto"}),
                 "tokenizer_path": (["auto"] + folders, {"default": "auto"}),
-                "t5_encoder_path": (["none", "auto"] + folders, {"default": "auto"}),
+                "t5_encoder_path": (["none", "auto"] + folders, {"default": "none"}),
                 "resolution": ("INT", {"default": 1024}),
                 "batch_size": ("INT", {"default": 1}),
                 "epochs": ("INT", {"default": 50}),
-                "ckpt_every": ("INT", {"default": 10}),
-                "ema_to_module": (["enable", "disable"], {"default": "enable"}),
-                "base_lora": (["latest", "empty"], {"default": "latest"}),
+                "ckpt_every": ("INT", {"default": 500}),
+                "rank": ("INT", {"default": 8}),
+                "base_lora": (["latest", "empty"] + loras, {"default": "latest"}),
                 "sample_generate": (["enable", "disable"], {"default": "enable"}),
                 "sample_prompt": ("STRING", {"default:": "", "dynamicPrompts": True, "multiline": True}),
             },
             "optional": {
+                "advanced_config": ("MZ_TT_HYDiT_AdvConfig",),
                 "workspace_images_dir": ("STRING", {"forceInput": True}),
                 "has_no_effect": (AlwaysEqualProxy("*"),),
             }
@@ -570,7 +607,7 @@ base_size The base resolution (n, n) from which to create multiple resolutions |
 
     def start(self, **kwargs):
         importlib.reload(mz_train_tools_core_HYDiT)
-        return mz_train_tools_core_HYDiT.MZ_HYDiTTrain_call(kwargs)
+        return mz_train_tools_core_HYDiT.MZ_HYDiTTrain_call(kwargs.copy())
 
 
 NODE_CLASS_MAPPINGS["MZ_HYDiTTrain"] = MZ_HYDiTTrain

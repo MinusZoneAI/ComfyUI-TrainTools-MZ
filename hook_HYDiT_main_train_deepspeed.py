@@ -44,6 +44,9 @@ def deepspeed_initialize(args, logger, model, opt, deepspeed_config):
 
     logger.info(
         f"    Building scheduler with warmup_min_lr={args.warmup_min_lr}, warmup_num_steps={args.warmup_num_steps}")
+    logger.info(
+        f"    deepspeed_config={deepspeed_config}")
+
     model, opt, _, scheduler = deepspeed.initialize(
         model=model,
         model_parameters=get_trainable_params(model),
@@ -381,11 +384,17 @@ def Core(args):
             args, model, ema, logger)
 
     if args.training_parts == "lora":
-        loraconfig = LoraConfig(
-            r=args.rank,
-            lora_alpha=args.rank,
-            target_modules=args.target_modules
-        )
+        lora_ckpt = args.lora_ckpt
+        if lora_ckpt is not None:
+            from peft import PeftConfig
+            loraconfig = PeftConfig.from_pretrained(lora_ckpt)
+        else:
+            loraconfig = LoraConfig(
+                r=args.rank,
+                lora_alpha=args.rank,
+                target_modules=args.target_modules
+            )
+
         if args.use_fp16:
             model.module = get_peft_model(model.module, loraconfig)
         else:
@@ -553,7 +562,7 @@ def Core(args):
                 gc.collect()
 
             pbar.step(
-                f"Epoch {epoch}, step {step}, loss {loss.item():.4f}, mean_loss {running_loss / step:.4f}", args.epochs * len(loader), train_steps)
+                f"Epoch {epoch}, step {step}, loss {loss.item():.4f}", args.epochs * len(loader), train_steps)
 
             if (train_steps % args.ckpt_every == 0 or train_steps % args.ckpt_latest_every == 0  # or train_steps == args.max_training_steps
                 ) and train_steps > 0:

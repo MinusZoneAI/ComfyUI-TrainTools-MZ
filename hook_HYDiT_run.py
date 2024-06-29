@@ -78,24 +78,40 @@ if __name__ == "__main__":
     margs = hydit.config.get_args()
     margs.model = train_config.get("model", "DiT-g/2")
 
-    margs.task_flag = train_config.get(
-        "task_flag", "lora_porcelain_ema_rank64")
+    margs.task_flag = train_config.get("task_flag")
 
     margs.resume_split = train_config.get("resume_split", True)
+
     margs.ema_to_module = train_config.get("ema_to_module", True)
+
     margs.deepspeed = False
+
     margs.predict_type = train_config.get("predict_type", "v_prediction")
+
     margs.training_parts = train_config.get("training_parts", "lora")
+
     margs.batch_size = train_config.get("batch_size", 1)
+
     margs.grad_accu_steps = train_config.get("grad_accu_steps", 1)
+
     margs.global_seed = train_config.get("global_seed", 0)
+
     margs.use_flash_attn = train_config.get("use_flash_attn", False)
+
     margs.use_fp16 = train_config.get("use_fp16", True)
+
     margs.qk_norm = train_config.get("qk_norm", True)
+
     margs.ema_dtype = train_config.get("ema_dtype", "fp32")
+
     margs.async_ema = False
+
+    margs.ckpt_latest_every = 0x7fffffff
+
     margs.multireso = train_config.get("multireso", True)
+
     margs.epochs = train_config.get("epochs", 50)
+
     margs.target_ratios = train_config.get(
         "target_ratios", ['1:1', '3:4', '4:3', '16:9', '9:16'])
     margs.rope_img = train_config.get("rope_img", "base1024")
@@ -107,16 +123,17 @@ if __name__ == "__main__":
     margs.index_file = train_config.get("index_file", None)
 
     margs.lr = train_config.get("lr", 1e-5)
-    
+
     margs.rank = train_config.get("rank", 8)
 
     margs.noise_offset = train_config.get("noise_offset", 0.0)
 
     margs.log_every = train_config.get("log_every", 99999999999999)
-    
+
     margs.use_zero_stage = train_config.get("use_zero_stage", 2)
 
     margs.global_batch_size = train_config.get("global_batch_size", 1)
+    
     margs.deepspeed = True
 
     margs.results_dir = train_config.get("results_dir")
