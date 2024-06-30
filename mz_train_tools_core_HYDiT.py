@@ -851,7 +851,16 @@ def MZ_HYDiTSimpleT2I_call(args={}):
     if HYDiT_tool_dir not in sys.path:
         sys.path.append(HYDiT_tool_dir)
 
-    import hydit.inference
+
+
+
+
+    try:
+        import hydit
+    except ImportError:
+        sys.path.append(HYDiT_tool_dir)
+    
+    
     from hydit.inference import SAMPLER_FACTORY, HUNYUAN_DIT_CONFIG, get_fill_resize_and_crop, get_2d_rotary_pos_embed
     from hydit.modules.text_encoder import MT5Embedder
     from hydit.utils.tools import set_seeds
