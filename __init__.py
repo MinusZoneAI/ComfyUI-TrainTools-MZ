@@ -647,7 +647,7 @@ class MZ_HYDiTSimpleT2I:
                 "steps": ("INT", {"default": 20}),
                 "cfg": ("FLOAT", {"default": 8.0, "min": 0.0, "max": 100.0, "step": 0.1, "round": 0.01}),
                 "scheduler": ([
-                    "ddpm", "ddim", "dpmms", "uni_pc"
+                    "ddpm", "ddim", "dpmms", "uni_pc", "DPMPP_2M_Karras"
                 ], {"default": "ddpm"}),
                 "prompt": ("STRING", {"default:": "", "dynamicPrompts": True, "multiline": True}),
                 "negative_prompt": ("STRING", {"default:": "", "dynamicPrompts": True, "multiline": True}),
