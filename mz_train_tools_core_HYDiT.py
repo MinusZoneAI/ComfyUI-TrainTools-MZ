@@ -863,13 +863,13 @@ def MZ_HYDiTSimpleT2I_call(args={}):
         'scheduler': 'UniPCMultistepScheduler',
         'name': 'UniPCMultistepScheduler',
         'kwargs': {
-            # 'beta_schedule': 'scaled_linear',
-            # 'beta_start': 0.00085,
-            # 'beta_end': 0.03,
-            # 'prediction_type': 'v_prediction',
-            # 'trained_betas': None,
-            # 'solver_order': 2,
-            # 'algorithm_type': 'dpmsolver++',
+            'beta_schedule': 'scaled_linear',
+            'beta_start': 0.00085,
+            'beta_end': 0.03,
+            'prediction_type': 'v_prediction',
+            'trained_betas': None,
+            'solver_order': 2,
+            'algorithm_type': 'dpmsolver++',
         }
     }
 
