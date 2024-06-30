@@ -849,6 +849,7 @@ def MZ_HYDiTSimpleT2I_call(args={}):
     HYDiT_tool_dir = os.path.join(
         Utils.get_minus_zone_models_path(), "train_tools", "HunyuanDiT")
     if HYDiT_tool_dir not in sys.path:
+        print(f"add {HYDiT_tool_dir} to sys.path")
         sys.path.append(HYDiT_tool_dir)
 
 
