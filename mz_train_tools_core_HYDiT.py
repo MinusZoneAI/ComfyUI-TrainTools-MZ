@@ -852,17 +852,26 @@ def MZ_HYDiTSimpleT2I_call(args={}):
         print(f"add {HYDiT_tool_dir} to sys.path")
         sys.path.append(HYDiT_tool_dir)
 
-
-
-
-
-    
     from hydit.inference import SAMPLER_FACTORY, HUNYUAN_DIT_CONFIG, get_fill_resize_and_crop, get_2d_rotary_pos_embed
     from hydit.modules.text_encoder import MT5Embedder
     from hydit.utils.tools import set_seeds
     from PIL import Image
     from diffusers import schedulers, AutoencoderKL
     from transformers import BertModel, BertTokenizer
+
+    SAMPLER_FACTORY["uni_pc"] = {
+        'scheduler': 'UniPCMultistepScheduler',
+        'name': 'UniPCMultistepScheduler',
+        'kwargs': {
+            # 'beta_schedule': 'scaled_linear',
+            # 'beta_start': 0.00085,
+            # 'beta_end': 0.03,
+            # 'prediction_type': 'v_prediction',
+            # 'trained_betas': None,
+            # 'solver_order': 2,
+            # 'algorithm_type': 'dpmsolver++',
+        }
+    }
 
     width = args.get("width")
     height = args.get("height")
