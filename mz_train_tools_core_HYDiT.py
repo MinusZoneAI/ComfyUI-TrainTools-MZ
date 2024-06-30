@@ -869,7 +869,7 @@ def MZ_HYDiTSimpleT2I_call(args={}):
             'prediction_type': 'v_prediction',
             'trained_betas': None,
             'solver_order': 2,
-            'algorithm_type': 'dpmsolver++',
+            # 'algorithm_type': 'dpmsolver++',
         }
     }
 
