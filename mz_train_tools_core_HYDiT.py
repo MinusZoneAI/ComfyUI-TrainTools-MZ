@@ -876,9 +876,9 @@ def MZ_HYDiTSimpleT2I_call(args={}):
         'scheduler': 'DPMSolverMultistepScheduler',
         'name': 'DPMSolverMultistepScheduler',
         'kwargs': {
-            'beta_schedule': 'scaled_linear', 
-            'prediction_type': 'v_prediction', 
-            'algorithm_type': 'dpmsolver++',
+            'beta_schedule': 'scaled_linear',
+            'beta_start': 0.00085,
+            'beta_end': 0.03, 
             "use_karras_sigmas": True,
         }
     }
