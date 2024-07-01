@@ -67,13 +67,22 @@ class Utils:
 
     def listdir_png(path):
         try:
-            files = os.listdir(path)
+            files = Utils.listdir(path)
             new_files = []
             for file in files:
                 if file.lower().endswith(".png"):
                     new_files.append(file)
             files = new_files
             files.sort(key=lambda x: int(os.path.basename(x).split(".")[0]))
+            return files
+        except Exception as e:
+            return []
+
+    def listdir(path):
+        try:
+            files = os.listdir(path)
+            # 排除.开头的文件
+            files = [file for file in files if not file.startswith(".")]
             return files
         except Exception as e:
             return []
@@ -676,6 +685,8 @@ class Utils:
 
             if os.path.exists(find_fullpath):
                 for root, dirs, files in os.walk(find_fullpath):
+                    # 排除隐藏文件夹
+                    dirs[:] = [d for d in dirs if not d.startswith('.')]
                     for file in files:
                         if target_sha256 == Utils.file_sha256(os.path.join(root, file)):
                             return os.path.join(root, file)
@@ -919,14 +930,19 @@ class Utils:
     def get_models_by_folder(dir_path):
         models = []
         for root, dirs, files in os.walk(dir_path):
+            # 排除隐藏文件夹    
+            dirs[:] = [d for d in dirs if not d.startswith('.')]
             for file in files:
                 if file.endswith(".pth") or file.endswith(".pt") or file.endswith(".pkl") or file.endswith(".onnx") or file.endswith(".safetensors"):
                     models.append(os.path.join(root, file))
         return models
-    
+
     def get_folders_by_folder(dir_path):
         folders = []
         for root, dirs, files in os.walk(dir_path):
+            
+            # 排除隐藏文件夹    
+            dirs[:] = [d for d in dirs if not d.startswith('.')]
             for dir in dirs:
                 folders.append(os.path.join(root, dir))
         return folders

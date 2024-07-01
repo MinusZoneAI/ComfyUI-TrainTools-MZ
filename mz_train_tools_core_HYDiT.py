@@ -129,7 +129,8 @@ def MZ_HYDiTDatasetConfig_call(args={}):
     force_clear_only_images = args.get("force_clear_only_images") == "enable"
     if force_clear:
         if force_clear_only_images:
-            for file in os.listdir(train_images_dir):
+            images_files = Utils.listdir(train_images_dir)
+            for file in images_files:
                 if file.lower().endswith(".png") or file.lower().endswith(".jpg"):
                     os.remove(os.path.join(train_images_dir, file))
         else:
@@ -376,7 +377,7 @@ def MZ_HYDiTTrain_call(args={}):
     if workspace_images_dir is None:
         workspace_images_dir = os.path.join(workspace_dir, "train_images")
 
-    full_filenames = os.listdir(workspace_images_dir)
+    full_filenames = Utils.listdir(workspace_images_dir) 
 
     # 创建image_text.csv文件
     csv_filename = os.path.join(workspace_dir, "image_text.csv")
@@ -446,7 +447,7 @@ def MZ_HYDiTTrain_call(args={}):
     except Exception as e:
         raise Exception(f"生成arrow文件时出现异常,详细信息请查看控制台...")
 
-    arrows_files = os.listdir(arrows_dir)
+    arrows_files = Utils.listdir(arrows_dir) 
 
     dataset_yaml_path = os.path.join(workspace_dir, "dataset.yaml")
 
@@ -671,9 +672,11 @@ def get_sample_images(train_config):
     pil_images = []
     pre_render_texts_x = []
     if os.path.exists(sample_images_dir):
-        image_files = os.listdir(sample_images_dir)
+        image_files = Utils.listdir(sample_images_dir) 
+        
         image_files = list(
             filter(lambda x: x.lower().endswith(".png"), image_files))
+        
         # 筛选 output_name 前缀
         image_files = list(
             filter(lambda x: x.startswith(output_name), image_files))
@@ -1075,6 +1078,9 @@ def search_loras(wdirs):
     loras = []
     for wdir in wdirs:
         for root, dirs, files in os.walk(wdir):
+            # 排除隐藏文件夹    
+            dirs[:] = [d for d in dirs if not d.startswith('.')]
+
             for file in files:
                 if file.lower().endswith(".safetensors"):
                     # 并且在同一目录下有相同名字的json文件

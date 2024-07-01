@@ -119,7 +119,8 @@ def MZ_ImageSelecter_call(args={}):
     force_clear_only_images = args.get("force_clear_only_images") == "enable"
     if force_clear:
         if force_clear_only_images:
-            for file in os.listdir(train_images_dir):
+            images_files = Utils.listdir(train_images_dir)
+            for file in images_files:
                 if file.lower().endswith(".png") or file.lower().endswith(".jpg"):
                     os.remove(os.path.join(train_images_dir, file))
         else:
@@ -357,7 +358,7 @@ def get_sample_images(train_config):
     pil_images = []
     pre_render_texts_x = []
     if os.path.exists(sample_images_dir):
-        image_files = os.listdir(sample_images_dir)
+        image_files = Utils.listdir(sample_images_dir)
         image_files = list(
             filter(lambda x: x.lower().endswith(".png"), image_files))
         # 筛选 output_name 前缀
@@ -483,7 +484,7 @@ def MZ_KohyaSSTrain_call(args={}):
     elif base_lora == "latest":
         workspace_lora_dir = os.path.join(workspace_dir, "output")
         if os.path.exists(workspace_lora_dir):
-            workspace_lora_files = os.listdir(workspace_lora_dir)
+            workspace_lora_files = Utils.listdir(workspace_lora_dir)
             workspace_lora_files = list(
                 filter(lambda x: x.endswith(".safetensors"), workspace_lora_files))
             workspace_lora_files = list(
@@ -520,7 +521,7 @@ def MZ_KohyaSSTrain_call(args={}):
     elif base_controlnet == "latest":
         workspace_controlnet_dir = os.path.join(workspace_dir, "output")
         if os.path.exists(workspace_controlnet_dir):
-            workspace_controlnet_files = os.listdir(workspace_controlnet_dir)
+            workspace_controlnet_files = Utils.listdir(workspace_controlnet_dir)
             workspace_controlnet_files = list(
                 filter(lambda x: x.endswith(".safetensors"), workspace_controlnet_files))
             workspace_controlnet_files = list(
@@ -564,7 +565,7 @@ def MZ_KohyaSSTrain_call(args={}):
             workspace_dir, "conditioning_images")
         conditioning_images_onec = ""
         if os.path.exists(conditioning_images_dir):
-            conditioning_images_onec = os.listdir(conditioning_images_dir)[0]
+            conditioning_images_onec = Utils.listdir(conditioning_images_dir)[0]
             other_config["controlnet_image"] = os.path.join(
                 conditioning_images_dir, conditioning_images_onec)
         
