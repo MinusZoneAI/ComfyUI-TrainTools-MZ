@@ -394,7 +394,7 @@ def MZ_HYDiTTrain_call(args={}):
 
         writer.writerow(["image_path", "text_zh"])
         for filename in full_filenames:
-            if filename.lower().endswith(".png"):
+            if filename.lower().endswith(".png") or filename.lower().endswith(".jpg"):
 
                 image_path = os.path.join(workspace_images_dir, filename)
                 pil_image = Image.open(image_path)
