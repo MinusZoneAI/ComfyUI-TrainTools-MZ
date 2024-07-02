@@ -119,6 +119,20 @@ def MZ_HYDiTDatasetConfig_call(args={}):
 
     if images is None:
         print(f"训练数据位于:{train_images_dir},未检测到传入图片默认已有训练数据,将直接跳过数据准备步骤...")
+        same_caption_generate = args.get("same_caption_generate") == "enable"
+        if same_caption_generate:
+            saved_images_path = Utils.listdir(train_images_dir)
+            same_caption = args.get("same_caption").strip()
+            if same_caption != "":
+                # 循环已经保存的图片
+                for i, filename in enumerate(saved_images_path):
+                    if filename.lower().endswith(".png") or filename.lower().endswith(".jpg"):
+                        base_filename = os.path.splitext(filename)[0]
+                        caption_filename = base_filename + ".caption"
+                        with open(os.path.join(train_images_dir, caption_filename), "w", encoding="utf-8") as f:
+                            f.write(same_caption)
+
+
         return (
             train_images_dir,
         )
