@@ -333,7 +333,10 @@ class CustomizeEmbedsModel(nn.Module):
     def forward(self, *args, **kwargs):
         input_ids = kwargs.get("input_ids", None)
         if self.x is None:
-            batch_size = input_ids.shape[0]
+            if input_ids is None:
+                batch_size = 1
+            else:
+                batch_size = input_ids.shape[0]
             self.x = torch.zeros(1, batch_size, 256, 2048, dtype=self.dtype)
 
         if kwargs.get("output_hidden_states", False):
