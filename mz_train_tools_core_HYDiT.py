@@ -169,7 +169,7 @@ def MZ_HYDiTDatasetConfig_call(args={}):
 
 HYDiT_MODEL = {
     "HunyuanDiT/t2i/model/pytorch_model_ema.pt": {
-        "url": "https://www.modelscope.cn/models/wailovet/hy1.1/resolve/master/t2i/model/pytorch_model_module.pt",
+        "url": "https://www.modelscope.cn/models/wailovet/hy1.1/resolve/master/t2i/model/pytorch_model_ema.pt",
     },
     "HunyuanDiT/t2i/model/pytorch_model_module.pt": {
         "url": "https://www.modelscope.cn/models/wailovet/hy1.1/resolve/master/t2i/model/pytorch_model_module.pt",
