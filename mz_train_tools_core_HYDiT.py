@@ -72,7 +72,8 @@ def MZ_HYDiTInitClone_call(args={}):
         with open(os.path.join(hunyuan_lora_dir, "hydit/diffusion/pipeline.py"), "r", encoding="utf-8") as f:
             pre_replace = "device = self._execution_device"
             content = f.read()
-            content = content.replace(pre_replace, "device = torch.device('cuda')")
+            content = content.replace(
+                pre_replace, "device = torch.device('cuda')")
         with open(os.path.join(hunyuan_lora_dir, "hydit/diffusion/pipeline.py"), "w", encoding="utf-8") as f:
             f.write(content)
 
@@ -442,6 +443,9 @@ def MZ_HYDiTTrain_call(args={}):
 
     # python ./hydit/data_loader/csv2arrow.py ./dataset/porcelain/csvfile/image_text.csv ./dataset/porcelain/arrows
     arrows_dir = os.path.join(workspace_dir, "arrows")
+    if os.path.exists(arrows_dir):
+        shutil.rmtree(arrows_dir)
+
     os.makedirs(arrows_dir, exist_ok=True)
     csv2arrow_exec = os.path.join(
         HYDiT_tool_dir, "hydit", "data_loader", "csv2arrow.py")
@@ -534,15 +538,12 @@ def MZ_HYDiTTrain_call(args={}):
         lora_ckpt = None
     elif lora_ckpt == "latest":
         lora_ckpt = None
-        loras = search_loras(workspace_dir)
+        loras = search_loras([workspace_dir])
         if len(loras) > 0:
             lora_ckpt = loras[0]
     elif not os.path.exists(lora_ckpt):
         raise Exception(f"未找到指定的lora文件: {lora_ckpt}")
 
-    if lora_ckpt is not None and lora_ckpt.endswith(".safetensors"):
-        # 文件所在目录
-        lora_ckpt = os.path.dirname(lora_ckpt)
     print(f"使用指定的lora文件: {lora_ckpt}")
     train_config.update({
         "workspace_name": workspace_name,
@@ -564,6 +565,7 @@ def MZ_HYDiTTrain_call(args={}):
         "results_dir": output_dir,
         "task_flag": output_name,
         "lora_ckpt": lora_ckpt,
+        "rank": int(args.get("rank")),
     })
 
     if "target_modules" in train_config:
@@ -705,10 +707,9 @@ def get_HunYuanDiT_model_from_path(model_path, lora_path, width, height):
 
     from hydit.modules.models import HUNYUAN_DIT_CONFIG
     import importlib
-    import hydit.modules.models 
+    import hydit.modules.models
     importlib.reload(hydit.modules.models)
     HunYuanDiT = hydit.modules.models.HunYuanDiT
-    
 
     from types import SimpleNamespace
 
@@ -1091,13 +1092,12 @@ def search_loras(wdirs):
         for root, dirs, files in os.walk(wdir):
             # 排除隐藏文件夹
             dirs[:] = [d for d in dirs if not d.startswith('.')]
-
+            # 存在adapter_config.json文件并且存在adapter_model.safetensors文件
             for file in files:
-                if file.lower().endswith(".safetensors"):
-                    # 并且在同一目录下有相同名字的json文件
-                    json_file = os.path.splitext(file)[0] + ".json"
-                    if os.path.exists(os.path.join(root, json_file)):
-                        loras.append(os.path.join(root, file))
+                if file == "adapter_config.json":
+                    lora_path = os.path.join(root, "adapter_model.safetensors")
+                    if os.path.exists(lora_path):
+                        loras.append(root)
 
     # 按时间倒序
     loras = sorted(loras, key=lambda x: os.path.getmtime(x), reverse=True)

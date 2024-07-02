@@ -8,6 +8,7 @@ from functools import partial
 from glob import glob
 from pathlib import Path
 import numpy as np
+import safetensors.torch
 
 import deepspeed
 import torch
@@ -382,12 +383,19 @@ def Core(args):
     if True:
         model, ema, start_epoch, start_epoch_step, train_steps = model_resume(
             args, model, ema, logger)
-
+ 
     if args.training_parts == "lora":
         lora_ckpt = args.lora_ckpt
         if lora_ckpt is not None:
-            from peft import PeftConfig
-            loraconfig = PeftConfig.from_pretrained(lora_ckpt)
+            lastest_checkpoint = lora_ckpt
+            from peft.peft_model import PeftModel
+            print(f"Loading lora model from {lastest_checkpoint}")
+            if args.use_fp16:
+                model.module = PeftModel.from_pretrained(
+                    model.module, lastest_checkpoint, is_trainable=True)
+            else:
+                model = PeftModel.from_pretrained(
+                    model, lastest_checkpoint, is_trainable=True)
         else:
             loraconfig = LoraConfig(
                 r=args.rank,
@@ -395,10 +403,10 @@ def Core(args):
                 target_modules=args.target_modules
             )
 
-        if args.use_fp16:
-            model.module = get_peft_model(model.module, loraconfig)
-        else:
-            model = get_peft_model(model, loraconfig)
+            if args.use_fp16:
+                model.module = get_peft_model(model.module, loraconfig)
+            else:
+                model = get_peft_model(model, loraconfig)
 
     logger.info(f"    Training parts: {args.training_parts}")
 
@@ -408,6 +416,11 @@ def Core(args):
     # ===========================================================================
     # Training
     # ===========================================================================
+
+    # print model structure
+    # for name, param in model.named_parameters():
+    #     print(name, param.size())
+    # raise Exception("stop")
 
     model.train()
     if args.use_ema:

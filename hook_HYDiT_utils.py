@@ -291,8 +291,8 @@ from torch import nn
 
 class CustomizeEmbedsModel(nn.Module):
     dtype = torch.float16
-    x = torch.zeros(1, 1, 256, 2048)
-
+    # x = torch.zeros(1, 1, 256, 2048)
+    x = None
     def __init__(self, *args, **kwargs):
         super().__init__()
 
@@ -300,7 +300,13 @@ class CustomizeEmbedsModel(nn.Module):
         self.dtype = torch.float16
         return self
 
-    def forward(self, *args, **kwargs):
+    def forward(self, *args, **kwargs): 
+        input_ids = kwargs.get("input_ids", None)
+        if self.x is None:
+            batch_size = input_ids.shape[0]
+            self.x = torch.zeros(1, batch_size, 256, 2048, dtype=self.dtype)
+
+
         if kwargs.get("output_hidden_states", False):
             return {
                 "hidden_states": self.x.to("cuda"),
@@ -315,15 +321,15 @@ class CustomizeTokenizer(dict):
     input_ids = torch.zeros(1, 256)
     attention_mask = torch.zeros(1, 256)
 
-    def __init__(self):
+    def __init__(self, *args, **kwargs):
         self['added_tokens_encoder'] = self.added_tokens_encoder
         self['input_ids'] = self.input_ids
         self['attention_mask'] = self.attention_mask
 
-    def tokenize(self, text):
+    def tokenize(self, text):  
         return text
 
-    def __call__(self, *args, **kwargs):
+    def __call__(self, *args, **kwargs): 
         return self
 
 
