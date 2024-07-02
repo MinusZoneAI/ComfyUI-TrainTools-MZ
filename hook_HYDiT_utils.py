@@ -73,9 +73,9 @@ def easy_sample_images(
         prompt="A photo of a girl with a hat on a sunny day",
         negative_prompt="",
         batch_size=1,
-        guidance_scale=5.0,
+        guidance_scale=2.0,
         infer_steps=20,
-        sampler='ddpm',
+        sampler='dpmpp_2m_karras',
         train_steps=0,
 ):
     from hydit.diffusion.pipeline import StableDiffusionPipeline

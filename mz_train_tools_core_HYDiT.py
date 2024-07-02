@@ -169,10 +169,10 @@ def MZ_HYDiTDatasetConfig_call(args={}):
 
 HYDiT_MODEL = {
     "HunyuanDiT/t2i/model/pytorch_model_ema.pt": {
-        "url": "https://www.modelscope.cn/api/v1/models/modelscope/HunyuanDiT/repo?Revision=master&FilePath=t2i%2Fmodel%2Fpytorch_model_ema.pt",
+        "url": "https://www.modelscope.cn/models/wailovet/hy1.1/resolve/master/t2i/model/pytorch_model_module.pt",
     },
     "HunyuanDiT/t2i/model/pytorch_model_module.pt": {
-        "url": "https://www.modelscope.cn/api/v1/models/modelscope/HunyuanDiT/repo?Revision=master&FilePath=t2i%2Fmodel%2Fpytorch_model_module.pt",
+        "url": "https://www.modelscope.cn/models/wailovet/hy1.1/resolve/master/t2i/model/pytorch_model_module.pt",
     },
     "HunyuanDiT/t2i/sdxl-vae-fp16-fix/diffusion_pytorch_model.safetensors": {
         "url": "https://www.modelscope.cn/api/v1/models/modelscope/HunyuanDiT/repo?Revision=master&FilePath=t2i%2Fsdxl-vae-fp16-fix%2Fdiffusion_pytorch_model.safetensors",
