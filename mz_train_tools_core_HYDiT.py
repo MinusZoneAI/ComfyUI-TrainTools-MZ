@@ -28,7 +28,7 @@ git_accelerate_urls = {
 # 初始化工具仓库和工作区
 
 
-def MZ_HYDiTInitWorkspace_call(args={}):
+def MZ_HYDiTInitClone_call(args={}):
     mz_dir = Utils.get_minus_zone_models_path()
     git_url = "https://github.com/Tencent/HunyuanDiT"
     source = args.get("source", "github")
@@ -54,8 +54,8 @@ def MZ_HYDiTInitWorkspace_call(args={}):
         print(
             f"当前分支(current branch): {long_current_branch}({short_current_branch})")
         print(f"目标分支(target branch): {branch}")
-
-        if branch != result.stdout.decode() and branch != short_result.stdout.decode():
+        time.sleep(1)
+        if branch != long_current_branch and branch != short_current_branch:
             subprocess.run(
                 ["git", "remote", "set-branches", "origin", branch], cwd=hunyuan_lora_dir, check=True)
             subprocess.run(
@@ -72,12 +72,16 @@ def MZ_HYDiTInitWorkspace_call(args={}):
         with open(os.path.join(hunyuan_lora_dir, "hydit/diffusion/pipeline.py"), "r", encoding="utf-8") as f:
             pre_replace = "device = self._execution_device"
             content = f.read()
-            content = content.replace(pre_replace, "device = 'cuda'")
+            content = content.replace(pre_replace, "device = torch.device('cuda')")
         with open(os.path.join(hunyuan_lora_dir, "hydit/diffusion/pipeline.py"), "w", encoding="utf-8") as f:
             f.write(content)
 
     except Exception as e:
         raise Exception(f"克隆kohya-ss/sd-scripts或者切换分支时出现异常,详细信息请查看控制台...")
+
+
+def MZ_HYDiTInitWorkspace_call(args={}):
+    MZ_HYDiTInitClone_call(args)
 
     workspace_name = args.get("train_name", None)
     workspace_name = workspace_name.strip()
@@ -377,7 +381,7 @@ def MZ_HYDiTTrain_call(args={}):
     if workspace_images_dir is None:
         workspace_images_dir = os.path.join(workspace_dir, "train_images")
 
-    full_filenames = Utils.listdir(workspace_images_dir) 
+    full_filenames = Utils.listdir(workspace_images_dir)
 
     # 创建image_text.csv文件
     csv_filename = os.path.join(workspace_dir, "image_text.csv")
@@ -448,7 +452,7 @@ def MZ_HYDiTTrain_call(args={}):
     except Exception as e:
         raise Exception(f"生成arrow文件时出现异常,详细信息请查看控制台...")
 
-    arrows_files = Utils.listdir(arrows_dir) 
+    arrows_files = Utils.listdir(arrows_dir)
 
     dataset_yaml_path = os.path.join(workspace_dir, "dataset.yaml")
 
@@ -673,11 +677,11 @@ def get_sample_images(train_config):
     pil_images = []
     pre_render_texts_x = []
     if os.path.exists(sample_images_dir):
-        image_files = Utils.listdir(sample_images_dir) 
-        
+        image_files = Utils.listdir(sample_images_dir)
+
         image_files = list(
             filter(lambda x: x.lower().endswith(".png"), image_files))
-        
+
         # 筛选 output_name 前缀
         image_files = list(
             filter(lambda x: x.startswith(output_name), image_files))
@@ -699,7 +703,12 @@ def get_sample_images(train_config):
 
 def get_HunYuanDiT_model_from_path(model_path, lora_path, width, height):
 
-    from hydit.modules.models import HunYuanDiT, HUNYUAN_DIT_CONFIG
+    from hydit.modules.models import HUNYUAN_DIT_CONFIG
+    import importlib
+    import hydit.modules.models 
+    importlib.reload(hydit.modules.models)
+    HunYuanDiT = hydit.modules.models.HunYuanDiT
+    
 
     from types import SimpleNamespace
 
@@ -732,7 +741,7 @@ def get_HunYuanDiT_model_from_path(model_path, lora_path, width, height):
                        ).half().to("cuda")
     state_dict = torch.load(
         model_path, map_location=lambda storage, loc: storage)
-    model.load_state_dict(state_dict)
+    model.load_state_dict(state_dict, strict=False)
 
     if lora_path is not None:
         from peft import PeftConfig
@@ -848,6 +857,7 @@ class CustomizeEmbeds():
 
 def MZ_HYDiTSimpleT2I_call(args={}):
     check_required()
+    MZ_HYDiTInitClone_call(args)
     args = check_model_auto_download(args)
 
     HYDiT_tool_dir = os.path.join(
@@ -1079,7 +1089,7 @@ def search_loras(wdirs):
     loras = []
     for wdir in wdirs:
         for root, dirs, files in os.walk(wdir):
-            # 排除隐藏文件夹    
+            # 排除隐藏文件夹
             dirs[:] = [d for d in dirs if not d.startswith('.')]
 
             for file in files:

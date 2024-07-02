@@ -557,6 +557,7 @@ class MZ_HYDiTTrain:
         os.makedirs(hunyuan_models_path, exist_ok=True)
 
         models = Utils.get_models_by_folder(hunyuan_models_path)
+
         folders = Utils.get_folders_by_folder(hunyuan_models_path)
 
         vae_models = Utils.get_models_by_folder(
@@ -642,6 +643,13 @@ class MZ_HYDiTSimpleT2I:
 
         return {
             "required": {
+                "branch": ("STRING", {"default": "5657364143e44ac90f72aeb47b81bd505a95665d"}),
+                "source": ([
+                    "github",
+                    "githubfast",
+                    "521github",
+                    "kkgithub",
+                ], {"default": "github"}),
                 "unet_path": (["auto"] + models + unet_models, {"default": "auto"}),
                 "vae_ema_path": (["auto"] + folders + vae_models, {"default": "auto"}),
                 "text_encoder_path": (["auto"] + folders, {"default": "auto"}),
