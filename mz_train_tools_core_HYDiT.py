@@ -887,7 +887,7 @@ def MZ_HYDiTSimpleT2I_call(args={}):
             # 'algorithm_type': 'dpmsolver++',
         }
     }
-    SAMPLER_FACTORY["DPMPP_2M_Karras"] = {
+    SAMPLER_FACTORY["dpmpp_2m_karras"] = {
         'scheduler': 'DPMSolverMultistepScheduler',
         'name': 'DPMSolverMultistepScheduler',
         'kwargs': {

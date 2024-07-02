@@ -100,9 +100,38 @@ def easy_sample_images(
         sample_images_dir = os.path.join(workspace_dir, "sample_images")
         os.makedirs(sample_images_dir, exist_ok=True)
 
+        sampler_factory = SAMPLER_FACTORY.copy()
+
+        sampler_factory["uni_pc"] = {
+            'scheduler': 'UniPCMultistepScheduler',
+            'name': 'UniPCMultistepScheduler',
+            'kwargs': {
+                'beta_schedule': 'scaled_linear',
+                'beta_start': 0.00085,
+                'beta_end': 0.03,
+                'prediction_type': 'v_prediction',
+                'trained_betas': None,
+                'solver_order': 2,
+            }
+        }
+        sampler_factory["dpmpp_2m_karras"] = {
+            'scheduler': 'DPMSolverMultistepScheduler',
+            'name': 'DPMSolverMultistepScheduler',
+            'kwargs': {
+                'beta_schedule': 'scaled_linear',
+                'beta_start': 0.00085,
+                'beta_end': 0.03,
+                'prediction_type': 'v_prediction',
+                'trained_betas': None,
+                'solver_order': 2,
+                'algorithm_type': 'dpmsolver++',
+                "use_karras_sigmas": True,
+            }
+        }
+
         # Load sampler from factory
-        kwargs = SAMPLER_FACTORY[sampler]['kwargs']
-        scheduler = SAMPLER_FACTORY[sampler]['scheduler']
+        kwargs = sampler_factory[sampler]['kwargs']
+        scheduler = sampler_factory[sampler]['scheduler']
 
         # Build scheduler according to the sampler.
         scheduler_class = getattr(schedulers, scheduler)
@@ -293,6 +322,7 @@ class CustomizeEmbedsModel(nn.Module):
     dtype = torch.float16
     # x = torch.zeros(1, 1, 256, 2048)
     x = None
+
     def __init__(self, *args, **kwargs):
         super().__init__()
 
@@ -300,12 +330,11 @@ class CustomizeEmbedsModel(nn.Module):
         self.dtype = torch.float16
         return self
 
-    def forward(self, *args, **kwargs): 
+    def forward(self, *args, **kwargs):
         input_ids = kwargs.get("input_ids", None)
         if self.x is None:
             batch_size = input_ids.shape[0]
             self.x = torch.zeros(1, batch_size, 256, 2048, dtype=self.dtype)
-
 
         if kwargs.get("output_hidden_states", False):
             return {
@@ -326,10 +355,10 @@ class CustomizeTokenizer(dict):
         self['input_ids'] = self.input_ids
         self['attention_mask'] = self.attention_mask
 
-    def tokenize(self, text):  
+    def tokenize(self, text):
         return text
 
-    def __call__(self, *args, **kwargs): 
+    def __call__(self, *args, **kwargs):
         return self
 
 
