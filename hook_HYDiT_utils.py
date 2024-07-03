@@ -289,8 +289,11 @@ def LOG(log):
     if master_port == 0:
         raise Exception("master_port is 0")
     # 发送http
-    resp = requests.request("post", f"http://127.0.0.1:{master_port}/log", data=json.dumps(log), headers={
-                            "Content-Type": "application/json"})
+    try:
+        resp = requests.request("post", f"http://127.0.0.1:{master_port}/log", data=json.dumps(log), headers={
+                                "Content-Type": "application/json"})
+    except Exception as e:
+        return
     if resp.status_code != 200:
         raise Exception(f"LOG failed: {resp.text}")
 
