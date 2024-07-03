@@ -102,7 +102,7 @@ class MZ_KohyaSSUseConfig:
 
     @classmethod
     def INPUT_TYPES(s):
-        train_config_templates = Utils.listdir(s.train_config_template_dir) 
+        train_config_templates = Utils.listdir(s.train_config_template_dir)
 
         # 去掉json后缀
         train_config_templates = [os.path.splitext(x)[0]
@@ -241,8 +241,8 @@ class MZ_KohyaSSLoraTrain:
         # 使用walk查询所有的workspace中的所有lora模型,lora存放在每个workspace的output目录下
         workspaces_loras = []
         for root, dirs, files in os.walk(workspaces_dir):
-            
-            # 排除隐藏文件夹    
+
+            # 排除隐藏文件夹
             dirs[:] = [d for d in dirs if not d.startswith(".")]
             if root.endswith("output"):
                 for file in files:
@@ -370,7 +370,7 @@ class MZ_LoadImagesFromDirectoryPath:
         image_dir = kwargs["directory"]
         if not os.path.exists(image_dir):
             return (images,)
-        images = Utils.listdir(image_dir) 
+        images = Utils.listdir(image_dir)
 
         images = [x for x in images if x.lower().endswith(
             ".png") or x.lower().endswith(".jpg")]
@@ -635,11 +635,9 @@ class MZ_HYDiTSimpleT2I:
         unet_models = Utils.get_models_by_folder(
             os.path.join(Utils.get_comfyui_models_path(), "unet"))
 
-        comfyui_full_loras = []
-        comfyui_loras = folder_paths.get_filename_list("loras")
-        for lora in comfyui_loras:
-            lora_path = folder_paths.get_full_path("loras", lora)
-            comfyui_full_loras.append(lora_path)
+        comfyui_full_loras = mz_train_tools_core_HYDiT.search_loras([
+            os.path.join(Utils.get_comfyui_models_path(), "loras"),
+        ])
 
         return {
             "required": {
