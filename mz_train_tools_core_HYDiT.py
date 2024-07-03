@@ -759,7 +759,37 @@ def get_HunYuanDiT_model_from_path(model_path, lora_path, width, height):
     model.load_state_dict(state_dict, strict=False)
 
     if lora_path is not None:
-        model.load_adapter(lora_path)
+
+        lora_path_files = Utils.listdir(lora_path)
+        safetensors_file = None
+        config_json_file = None
+        for file in lora_path_files:
+            if file.lower().endswith(".safetensors"):
+                safetensors_file = os.path.join(lora_path, file)
+            if file.lower().endswith(".json"):
+                config_json_file = os.path.join(lora_path, file)
+
+        if safetensors_file is None or config_json_file is None:
+            raise Exception("未找到对应的lora文件")
+
+        from peft import PeftConfig
+
+        # 查询后缀 
+        from safetensors.torch import load_file
+        adapter_state_dict = load_file(safetensors_file) 
+
+        peft_config = PeftConfig()
+ 
+        with open(config_json_file, "r", encoding="utf-8") as f:
+            loaded_attributes = json.load(f)
+
+        for key, value in loaded_attributes.items():
+            setattr(peft_config, key, value)
+
+        model.load_adapter(
+            adapter_state_dict=adapter_state_dict,
+            peft_config=peft_config,
+        )
         model.merge_and_unload()
 
     return model
