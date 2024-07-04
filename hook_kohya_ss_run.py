@@ -48,6 +48,10 @@ train_config_json = "{}"
 sample_images_pipe_class = None
 
 
+def utils_sample_images(*args, **kwargs):
+    return sample_images(None, *args, **kwargs)
+
+
 def sample_images(self, *args, **kwargs):
     #  accelerator, args, epoch, global_step, device, vae, tokenizer, text_encoder, unet
     accelerator = args[0]
@@ -63,27 +67,15 @@ def sample_images(self, *args, **kwargs):
     # print(f"sample_images: args = {args}")
     # print(f"sample_images: kwargs = {kwargs}")
 
-    # last_noise_pred = hook_kohya_ss_utils.running_info.get(
-    #     "last_noise_pred", None)
-
-    # noise_pred_latent_path = None
-    # if last_noise_pred is not None:
-    #     noise_pred_latent_path = os.path.join(
-    #         tempfile.gettempdir(), f"sample_images_{global_step % 5}.latent")
-
-    #     output = {}
-    #     output["latent_tensor"] = last_noise_pred
-    #     output["latent_format_version_0"] = torch.tensor([])
-    #     safetensors.torch.save_file(output, noise_pred_latent_path)
+    controlnet = kwargs.get("controlnet", None)
 
     if epoch is not None and cmd_args.save_every_n_epochs is not None and epoch % cmd_args.save_every_n_epochs == 0:
 
         prompt_dict_list = other_config.get("prompt_dict_list", [])
         if len(prompt_dict_list) == 0:
             seed = other_config.get("seed", 0)
-
-            prompt_dict_list.append({
-                "controlnet_image": None,
+            prompt_dict = {
+                "controlnet_image": other_config.get("controlnet_image", None),
                 "prompt": other_config.get("sample_prompt", ""),
                 "seed": seed,
                 "negative_prompt": "",
@@ -91,7 +83,9 @@ def sample_images(self, *args, **kwargs):
                 "sample_sampler": "euler_a",
                 "sample_steps": 20,
                 "scale": 5.0,
-            })
+            }
+
+            prompt_dict_list.append(prompt_dict)
         else:
             for i, prompt_dict in enumerate(prompt_dict_list):
                 if prompt_dict.get("controlnet_image", None) is None:
@@ -103,6 +97,7 @@ def sample_images(self, *args, **kwargs):
                 if prompt_dict.get("enum", None) is None:
                     prompt_dict["enum"] = i
         hook_kohya_ss_utils.generate_image(
+            pipe_class=sample_images_pipe_class,
             cmd_args=cmd_args,
             accelerator=accelerator,
             epoch=epoch,
@@ -110,8 +105,8 @@ def sample_images(self, *args, **kwargs):
             tokenizer=tokenizer,
             unet=unet,
             vae=vae,
-            pipe_class=sample_images_pipe_class,
             prompt_dict_list=prompt_dict_list,
+            controlnet=controlnet,
         )
 
     LOG({
@@ -166,9 +161,55 @@ def run_lora_sdxl():
     trainer.train(train_args)
 
 
+from types import SimpleNamespace
+
+
+class SimpleNamespaceCNWarrper(SimpleNamespace):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.__dict__.update(kwargs)  # or self.__dict__ = kwargs
+        self.__dict__["mid_block_type"] = "UNetMidBlock2DCrossAttn"
+        self.__dict__["_diffusers_version"] = "0.6.0"
+        self.__iter__ = lambda: iter(kwargs.keys())
+    # is not iterable
+
+    def __iter__(self):
+        return iter(self.__dict__.keys())
+    # object has no attribute 'num_attention_heads'
+
+    def __getattr__(self, name):
+        return self.__dict__.get(name, None)
+
+
+def run_controlnet_sd1_5():
+    import types
+    types.SimpleNamespace = SimpleNamespaceCNWarrper
+    hook_kohya_ss_utils.hook_kohya_ss()
+    # 覆盖sample_images生成函数,包括进度条和生成图片功能
+
+    import train_controlnet
+
+    # 配置对应的pipeline
+    import library.train_util
+    library.train_util.sample_images = utils_sample_images
+
+    global sample_images_pipe_class
+    sample_images_pipe_class = library.train_util.StableDiffusionLongPromptWeightingPipeline
+
+    train_config = json.loads(train_config_json)
+    train_args = config2args(train_controlnet.setup_parser(), train_config)
+
+    LOG({
+        "type": "start_train",
+    })
+
+    train_controlnet.train(train_args)
+
+
 func_map = {
     "run_lora_sd1_5": run_lora_sd1_5,
     "run_lora_sdxl": run_lora_sdxl,
+    "run_controlnet_sd1_5": run_controlnet_sd1_5,
 }
 
 

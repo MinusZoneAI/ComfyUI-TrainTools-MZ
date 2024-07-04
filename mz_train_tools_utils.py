@@ -67,13 +67,22 @@ class Utils:
 
     def listdir_png(path):
         try:
-            files = os.listdir(path)
+            files = Utils.listdir(path)
             new_files = []
             for file in files:
-                if file.endswith(".png"):
+                if file.lower().endswith(".png"):
                     new_files.append(file)
             files = new_files
             files.sort(key=lambda x: int(os.path.basename(x).split(".")[0]))
+            return files
+        except Exception as e:
+            return []
+
+    def listdir(path):
+        try:
+            files = os.listdir(path)
+            # 排除.开头的文件
+            files = [file for file in files if not file.startswith(".")]
             return files
         except Exception as e:
             return []
@@ -676,6 +685,8 @@ class Utils:
 
             if os.path.exists(find_fullpath):
                 for root, dirs, files in os.walk(find_fullpath):
+                    # 排除隐藏文件夹
+                    dirs[:] = [d for d in dirs if not d.startswith('.')]
                     for file in files:
                         if target_sha256 == Utils.file_sha256(os.path.join(root, file)):
                             return os.path.join(root, file)
@@ -710,12 +721,12 @@ class Utils:
                 return previewer
 
             def update(self, step, total_steps, pil_img=None):
-                pil_img_info = ("JPEG", pil_img, 512)
-                if pil_img is None:
-                    pil_img_info = None
-                if type(pil_img) == Tuple or type(pil_img) == list or type(pil_img) == tuple:
-                    pil_img_info = pil_img
                 try:
+                    pil_img_info = ("JPEG", pil_img, 512)
+                    if pil_img is None:
+                        pil_img_info = None
+                    if type(pil_img) == Tuple or type(pil_img) == list or type(pil_img) == tuple:
+                        pil_img_info = pil_img
                     # print("pil_img_info:", type(pil_img), pil_img_info)
                     # print("step:", step, "total_steps:", total_steps)
                     self.pbar.update_absolute(
@@ -787,6 +798,8 @@ class Utils:
         # 去掉pre_render_texts_x中所有相同字符串前缀
 
         def get_common_prefix(pre_render_texts_x):
+            if len(pre_render_texts_x) == 0:
+                return ""
             common_prefix = ""
             for i in range(len(pre_render_texts_x[0])):
                 c = pre_render_texts_x[0][i]
@@ -913,3 +926,23 @@ class Utils:
                       label_text, font=font, fill="black")
 
         return full_canvas
+
+    def get_models_by_folder(dir_path):
+        models = []
+        for root, dirs, files in os.walk(dir_path):
+            # 排除隐藏文件夹    
+            dirs[:] = [d for d in dirs if not d.startswith('.')]
+            for file in files:
+                if file.endswith(".pth") or file.endswith(".pt") or file.endswith(".pkl") or file.endswith(".onnx") or file.endswith(".safetensors"):
+                    models.append(os.path.join(root, file))
+        return models
+
+    def get_folders_by_folder(dir_path):
+        folders = []
+        for root, dirs, files in os.walk(dir_path):
+            
+            # 排除隐藏文件夹    
+            dirs[:] = [d for d in dirs if not d.startswith('.')]
+            for dir in dirs:
+                folders.append(os.path.join(root, dir))
+        return folders

@@ -93,6 +93,12 @@ def MZ_ImageSelecter_call(args={}):
     images = args.get("images")
     pil_images = Utils.tensors2pil_list(images)
 
+    conditioning_images = args.get("conditioning_images", None)
+    conditioning_pil_images = None
+    if conditioning_images is not None:
+        conditioning_pil_images = Utils.tensors2pil_list(
+            conditioning_images)
+
     resolution = args.get("resolution", 512)
 
     workspace_config = args.get("workspace_config", {})
@@ -106,12 +112,16 @@ def MZ_ImageSelecter_call(args={}):
     train_images_dir = os.path.join(workspace_dir, "train_images")
     os.makedirs(train_images_dir, exist_ok=True)
 
+    conditioning_images_dir = os.path.join(
+        workspace_dir, "conditioning_images")
+
     force_clear = args.get("force_clear") == "enable"
     force_clear_only_images = args.get("force_clear_only_images") == "enable"
     if force_clear:
         if force_clear_only_images:
-            for file in os.listdir(train_images_dir):
-                if file.endswith(".png") or file.endswith(".jpg"):
+            images_files = Utils.listdir(train_images_dir)
+            for file in images_files:
+                if file.lower().endswith(".png") or file.lower().endswith(".jpg"):
                     os.remove(os.path.join(train_images_dir, file))
         else:
             shutil.rmtree(train_images_dir)
@@ -120,9 +130,15 @@ def MZ_ImageSelecter_call(args={}):
     saved_images_path = []
     for i, pil_image in enumerate(pil_images):
         pil_image = Utils.resize_max(pil_image, resolution, resolution)
+        width, height = pil_image.size
         filename = hashlib.md5(pil_image.tobytes()).hexdigest() + ".png"
         pil_image.save(os.path.join(train_images_dir, filename))
         saved_images_path.append(filename)
+
+        if conditioning_pil_images is not None:
+            os.makedirs(conditioning_images_dir, exist_ok=True)
+            conditioning_pil_images[i].resize((width, height)).save(
+                os.path.join(conditioning_images_dir, filename))
 
     same_caption_generate = args.get("same_caption_generate") == "enable"
     if same_caption_generate:
@@ -136,12 +152,17 @@ def MZ_ImageSelecter_call(args={}):
                     f.write(same_caption)
 
     dataset_config_path = os.path.join(workspace_dir, "dataset.toml")
+
+    if conditioning_images is None:
+        conditioning_images_dir = None
+
     generate_toml_config(
         dataset_config_path,
         enable_bucket=args.get("enable_bucket") == "enable",
         resolution=args.get("resolution"),
         batch_size=args.get("batch_size"),
         image_dir=train_images_dir,
+        conditioning_data_dir=conditioning_images_dir,
         caption_extension=".caption",
         num_repeats=args.get("num_repeats"),
     )
@@ -290,7 +311,7 @@ def check_install():
 import logging
 
 
-def generate_toml_config(output_path, enable_bucket=True, resolution=512, batch_size=1, image_dir=None, caption_extension=".caption", num_repeats=10, ):
+def generate_toml_config(output_path, enable_bucket=True, resolution=512, batch_size=1, image_dir=None, conditioning_data_dir=None, caption_extension=".caption", num_repeats=10, ):
     check_install()
     import toml
     config = {
@@ -304,6 +325,7 @@ def generate_toml_config(output_path, enable_bucket=True, resolution=512, batch_
                 'subsets': [
                     {
                         'image_dir': image_dir,
+                        'conditioning_data_dir': conditioning_data_dir,
                         'caption_extension': caption_extension,
                         'num_repeats': num_repeats,
                     },
@@ -336,9 +358,9 @@ def get_sample_images(train_config):
     pil_images = []
     pre_render_texts_x = []
     if os.path.exists(sample_images_dir):
-        image_files = os.listdir(sample_images_dir)
+        image_files = Utils.listdir(sample_images_dir)
         image_files = list(
-            filter(lambda x: x.endswith(".png"), image_files))
+            filter(lambda x: x.lower().endswith(".png"), image_files))
         # 筛选 output_name 前缀
         image_files = list(
             filter(lambda x: x.startswith(output_name), image_files))
@@ -374,11 +396,8 @@ def run_hook_kohya_ss_run_file(kohya_ss_tool_dir, train_config, trainer_func, ot
     if trainer_func.find("sdxl") != -1:
         taesd_type = "sdxl"
 
-
-    
- 
     pb = Utils.progress_bar(train_config.get("max_train_steps"), taesd_type)
- 
+
     import traceback
 
     import comfy.model_management
@@ -400,7 +419,6 @@ def run_hook_kohya_ss_run_file(kohya_ss_tool_dir, train_config, trainer_func, ot
 
                 max_side = max(xy_img.width, xy_img.height)
                 # print(f"global_step: {global_step}, max_train_steps: {max_train_steps}")
-
 
                 total_steps = resp.get("total_steps")
                 pb.update(
@@ -466,7 +484,7 @@ def MZ_KohyaSSTrain_call(args={}):
     elif base_lora == "latest":
         workspace_lora_dir = os.path.join(workspace_dir, "output")
         if os.path.exists(workspace_lora_dir):
-            workspace_lora_files = os.listdir(workspace_lora_dir)
+            workspace_lora_files = Utils.listdir(workspace_lora_dir)
             workspace_lora_files = list(
                 filter(lambda x: x.endswith(".safetensors"), workspace_lora_files))
             workspace_lora_files = list(
@@ -494,14 +512,38 @@ def MZ_KohyaSSTrain_call(args={}):
         if "network_dropout" in train_config:
             del train_config["network_dropout"]
 
+    
+
+
+    base_controlnet = args.get("base_controlnet", "empty")
+    if base_controlnet == "empty":
+        pass
+    elif base_controlnet == "latest":
+        workspace_controlnet_dir = os.path.join(workspace_dir, "output")
+        if os.path.exists(workspace_controlnet_dir):
+            workspace_controlnet_files = Utils.listdir(workspace_controlnet_dir)
+            workspace_controlnet_files = list(
+                filter(lambda x: x.endswith(".safetensors"), workspace_controlnet_files))
+            workspace_controlnet_files = list(
+                map(lambda x: os.path.join(workspace_controlnet_dir, x), workspace_controlnet_files))
+            # 排序
+            workspace_controlnet_files = sorted(
+                workspace_controlnet_files, key=lambda x: os.path.getctime(x), reverse=True)
+            if len(workspace_controlnet_files) > 0:
+                base_controlnet = os.path.join(
+                    workspace_controlnet_dir, workspace_controlnet_files[0])
+        else:
+            base_controlnet = "empty"
+    else:
+        pass
+
+    if base_controlnet != "empty" and os.path.exists(base_controlnet):
+        train_config["controlnet_model_name_or_path"] = base_controlnet 
+
+
     train_type = config.get("metadata").get("train_type")
-    # 在ComfyUI中无法运行, 梯度有问题, 原因不清楚
-    # import train_network
-    # train_network.logger = logging.getLogger()
-    # trainer = train_network.NetworkTrainer()
-    # train_args = config2args(train_network.setup_parser(), train_config)
-    # trainer.train(train_args)
-    # return
+
+
     sample_generate = args.get("sample_generate", "enable")
     sample_prompt = args.get("sample_prompt", "")
     if sample_generate == "enable":
@@ -517,6 +559,18 @@ def MZ_KohyaSSTrain_call(args={}):
     elif train_type == "lora_sdxl":
         run_hook_kohya_ss_run_file(
             kohya_ss_tool_dir, train_config, "run_lora_sdxl", other_config)
+    elif train_type == "controlnet_sd1_5":
+
+        conditioning_images_dir = os.path.join(
+            workspace_dir, "conditioning_images")
+        conditioning_images_onec = ""
+        if os.path.exists(conditioning_images_dir):
+            conditioning_images_onec = Utils.listdir(conditioning_images_dir)[0]
+            other_config["controlnet_image"] = os.path.join(
+                conditioning_images_dir, conditioning_images_onec)
+        
+        run_hook_kohya_ss_run_file(
+            kohya_ss_tool_dir, train_config, "run_controlnet_sd1_5", other_config)
     else:
         raise Exception(
             f"暂时不支持的训练类型: {train_type}")
