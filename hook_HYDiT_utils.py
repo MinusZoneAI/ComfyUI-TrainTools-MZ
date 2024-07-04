@@ -77,6 +77,7 @@ def easy_sample_images(
         infer_steps=20,
         sampler='dpmpp_2m_karras',
         train_steps=0,
+        seed=0,
 ):
     from hydit.diffusion.pipeline import StableDiffusionPipeline
     from diffusers import schedulers
@@ -186,7 +187,8 @@ def easy_sample_images(
             freqs_cis_img = calc_rope(height, width)
 
             try:
-
+                generator = torch.Generator(device="cuda")
+                generator.manual_seed(seed)
                 samples = pipeline(
                     height=height,
                     width=width,
@@ -201,6 +203,7 @@ def easy_sample_images(
                     learn_sigma=args.learn_sigma,
                     freqs_cis_img=freqs_cis_img,
                     image_meta_size=image_meta_size,
+                    generator=generator,
                 )[0]
 
                 pass
