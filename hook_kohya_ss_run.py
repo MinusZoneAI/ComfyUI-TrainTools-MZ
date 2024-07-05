@@ -106,7 +106,7 @@ def sample_images(self, *args, **kwargs):
                     "height": height,
                     "width": width,
                 }
-
+                # 
                 prompt_dict_list.append(prompt_dict)
         else:
             for i, prompt_dict in enumerate(prompt_dict_list):
