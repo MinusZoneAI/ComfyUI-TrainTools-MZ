@@ -47,18 +47,17 @@ def utils_sample_images(*args, **kwargs):
     return sample_images(None, *args, **kwargs)
 
 
-
-def get_datasets(): 
+def get_datasets():
     train_config = json.loads(train_config_json)
-    import library.config_util   
-    user_config = library.config_util.load_user_config(train_config.get("dataset_config", None))
+    import library.config_util
+    user_config = library.config_util.load_user_config(
+        train_config.get("dataset_config", None))
     datasets = user_config.get("datasets", [])
     if len(datasets) == 0:
         return None
     return datasets[0]
 
 
-    
 def sample_images(self, *args, **kwargs):
     #  accelerator, args, epoch, global_step, device, vae, tokenizer, text_encoder, unet
     accelerator = args[0]
@@ -79,8 +78,7 @@ def sample_images(self, *args, **kwargs):
     if epoch is not None and cmd_args.save_every_n_epochs is not None and epoch % cmd_args.save_every_n_epochs == 0:
 
         datasets = get_datasets()
-        height = datasets.get("height", 512)
-        width = datasets.get("width", 512)
+        height, width = datasets.get("resolution", (512, 512)) 
         print(f"sample_images: height = {height}, width = {width}")
 
         prompt_dict_list = other_config.get("prompt_dict_list", [])
@@ -233,7 +231,6 @@ def run_lora_hunyuan1_2():
     # 还未实现
     hunyuan_train_network.HunYuanNetworkTrainer.sample_images = sample_images
 
-    
     # def empty_sample_images(*args, **kwargs):
     #     pass
     # sample_images_pipe_class = empty_sample_images
@@ -275,7 +272,7 @@ def run_lora_hunyuan1_2():
 
     library.hunyuan_utils.load_tokenizers = hunyuan_load_tokenizers
 
-    def hunyuan_load_model(model_path: str, dtype=torch.float16, device="cuda", use_extra_cond=False, dit_path=None): 
+    def hunyuan_load_model(model_path: str, dtype=torch.float16, device="cuda", use_extra_cond=False, dit_path=None):
 
         dit_path = hunyuan_models_config.get("unet_path", None)
 
@@ -326,11 +323,12 @@ def run_lora_hunyuan1_2():
         else:
 
             batch_size = train_args.train_batch_size
-            import library.config_util   
-            user_config = library.config_util.load_user_config(train_args.dataset_config)
+            import library.config_util
+            user_config = library.config_util.load_user_config(
+                train_args.dataset_config)
             datasets = user_config.get("datasets", [])
             if len(datasets) > 0:
-                batch_size = datasets[0].get("batch_size", batch_size) 
+                batch_size = datasets[0].get("batch_size", batch_size)
             mt5_embedder = (
                 hook_kohya_ss_utils.CustomizeMT5Embedder(
                     batch_size=batch_size,
@@ -358,14 +356,14 @@ def run_lora_hunyuan1_2():
             vae,
         )
 
-    library.hunyuan_utils.load_model = hunyuan_load_model 
+    library.hunyuan_utils.load_model = hunyuan_load_model
 
     trainer = hunyuan_train_network.HunYuanNetworkTrainer()
     train_config = json.loads(train_config_json)
     train_args = config2args(
         hunyuan_train_network.setup_parser(), train_config)
     print(f"train_args = {train_args}")
-     
+
     LOG({
         "type": "start_train",
     })
