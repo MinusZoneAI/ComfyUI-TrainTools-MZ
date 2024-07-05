@@ -18,7 +18,6 @@ CATEGORY_NAME = f"{AUTHOR_NAME} - TrainTools"
 
 
 class MZ_KohyaSSInitWorkspace:
-
     @classmethod
     def INPUT_TYPES(s):
         return {
@@ -39,7 +38,7 @@ class MZ_KohyaSSInitWorkspace:
     RETURN_NAMES = ("workspace_config",)
 
     FUNCTION = "start"
-    CATEGORY = CATEGORY_NAME
+    CATEGORY = CATEGORY_NAME + "/kohya_ss"
 
     def start(self, **kwargs):
         importlib.reload(mz_train_tools_core)
@@ -80,7 +79,7 @@ class MZ_KohyaSSDatasetConfig:
 """
 
     FUNCTION = "start"
-    CATEGORY = CATEGORY_NAME
+    CATEGORY = CATEGORY_NAME + "/kohya_ss"
 
     def start(self, **kwargs):
         importlib.reload(mz_train_tools_core)
@@ -127,7 +126,7 @@ class MZ_KohyaSSUseConfig_oldversion:
     RETURN_NAMES = ("train_config",)
 
     FUNCTION = "start"
-    CATEGORY = CATEGORY_NAME + "/v1"
+    CATEGORY = CATEGORY_NAME + "/kohya_ss" + "/v1"
 
     def start(self, **kwargs):
         importlib.reload(mz_train_tools_core)
@@ -196,7 +195,7 @@ class MZ_KohyaSSAdvConfig:
                 "lr_warmup_steps": ("INT", {"default": 0}),
                 "unet_lr": ("STRING", {"default": ""}),
                 "text_encoder_lr": ("STRING", {"default": ""}),
-                "shuffle_caption": (["enable", "disable"], {"default": "enable"}),
+                "shuffle_caption": (["enable", "disable"], {"default": "disable"}),
                 "save_precision": (["float", "fp16", "bf16"], {"default": "fp16"}),
                 "persistent_data_loader_workers": (["enable", "disable"], {"default": "enable"}),
                 "no_metadata": (["enable", "disable"], {"default": "enable"}),
@@ -211,7 +210,7 @@ class MZ_KohyaSSAdvConfig:
 
     FUNCTION = "start"
 
-    CATEGORY = CATEGORY_NAME
+    CATEGORY = CATEGORY_NAME + "/kohya_ss"
 
     def start(self, **kwargs):
         return (kwargs,)
@@ -286,7 +285,7 @@ class MZ_KohyaSSTrain_oldversion:
     RETURN_NAMES = ()
     OUTPUT_NODE = True
     FUNCTION = "start"
-    CATEGORY = CATEGORY_NAME + "/v1"
+    CATEGORY = CATEGORY_NAME + "/kohya_ss" + "/v1"
 
     def start(self, **kwargs):
         importlib.reload(mz_train_tools_core)
@@ -371,7 +370,7 @@ class MZ_KohyaSSLoraTrain:
     RETURN_NAMES = ()
     OUTPUT_NODE = True
     FUNCTION = "start"
-    CATEGORY = CATEGORY_NAME
+    CATEGORY = CATEGORY_NAME + "/kohya_ss"
 
     def start(self, **kwargs):
         importlib.reload(mz_train_tools_core)
@@ -440,7 +439,7 @@ class MZ_KohyaSSControlnetTrain:
     RETURN_NAMES = ()
     OUTPUT_NODE = True
     FUNCTION = "start"
-    CATEGORY = CATEGORY_NAME
+    CATEGORY = CATEGORY_NAME + "/kohya_ss"
 
     def start(self, **kwargs):
         importlib.reload(mz_train_tools_core)
@@ -460,12 +459,14 @@ class MZ_KohyaSS_KohakuBlueleaf_HYHiDLoraTrain:
         models, folders, vae_models, unet_models, loras = HYDiT_paths()
         _kohya_input_types = s.KohyaSSLoraTrain.INPUT_TYPES()
 
-        # "unet_path": (["auto"] + models + unet_models, {"default": "auto"}),
-        #         "ema_to_module": (["enable", "disable"], {"default": "enable"}),
-        #         "vae_ema_path": (["auto"] + folders + vae_models, {"default": "auto"}),
-        #         "text_encoder_path": (["auto"] + folders, {"default": "auto"}),
-        #         "tokenizer_path": (["auto"] + folders, {"default": "auto"}),
-        #         "t5_encoder_path": (["none", "auto"] + folders, {"default": "none"}),
+        # "workspace_config": kwargs["workspace_config"],
+        # "train_config_template": kwargs["train_config_template"],
+        # "ckpt_name": kwargs["ckpt_name"],
+        # "max_train_steps": kwargs["max_train_steps"],
+        # "max_train_epochs": kwargs["max_train_epochs"],
+        # "save_every_n_epochs": kwargs["save_every_n_epochs"],
+        # "learning_rate": kwargs["learning_rate"],
+
         kohya_input_types = {"required": {}, "optional": {}}
         kohya_input_types["required"]["unet_path"] = (
             ["auto"] + models + unet_models, {"default": "auto"})
@@ -494,7 +495,7 @@ class MZ_KohyaSS_KohakuBlueleaf_HYHiDLoraTrain:
     RETURN_NAMES = ()
     OUTPUT_NODE = True
     FUNCTION = "start"
-    CATEGORY = CATEGORY_NAME
+    CATEGORY = CATEGORY_NAME + "/kohya_ss_HYDiT_kohakublueleaf"
 
     def start(self, **kwargs):
         kwargs["hunyuan_models_config"] = {
@@ -504,7 +505,7 @@ class MZ_KohyaSS_KohakuBlueleaf_HYHiDLoraTrain:
             "tokenizer_path": kwargs["tokenizer_path"],
             "t5_encoder_path": kwargs["t5_encoder_path"],
         }
-        kwargs["ckpt_name"] = None 
+        kwargs["ckpt_name"] = None
         return self.KohyaSSLoraTrain.start(**kwargs)
 
 
@@ -534,7 +535,7 @@ class MZ_KohyaSS_KohakuBlueleaf_HYHiDInitWorkspace:
     RETURN_NAMES = ("workspace_config",)
 
     FUNCTION = "start"
-    CATEGORY = CATEGORY_NAME
+    CATEGORY = CATEGORY_NAME + "/kohya_ss_HYDiT_kohakublueleaf"
 
     def start(self, **kwargs):
         importlib.reload(mz_train_tools_core)
@@ -562,7 +563,7 @@ class MZ_LoadImagesFromDirectoryPath:
 
     FUNCTION = "start"
 
-    CATEGORY = CATEGORY_NAME
+    CATEGORY = CATEGORY_NAME + "/tools"
 
     def start(self, **kwargs):
         from PIL import Image
@@ -617,7 +618,7 @@ class MZ_HYDiTInitWorkspace:
 
     FUNCTION = "start"
 
-    CATEGORY = CATEGORY_NAME
+    CATEGORY = CATEGORY_NAME + "/HYDiT_native"
 
     def start(self, **kwargs):
         importlib.reload(mz_train_tools_core_HYDiT)
@@ -650,7 +651,7 @@ class MZ_HYDiTDatasetConfig:
 
     FUNCTION = "start"
 
-    CATEGORY = CATEGORY_NAME
+    CATEGORY = CATEGORY_NAME + "/HYDiT_native"
 
     def start(self, **kwargs):
         importlib.reload(mz_train_tools_core_HYDiT)
@@ -708,7 +709,7 @@ class MZ_HYDiTAdvConfig:
 
     FUNCTION = "start"
 
-    CATEGORY = CATEGORY_NAME
+    CATEGORY = CATEGORY_NAME + "/HYDiT_native"
 
     def start(self, **kwargs):
         return (kwargs.copy(),)
@@ -785,7 +786,7 @@ base_size The base resolution (n, n) from which to create multiple resolutions |
 
     OUTPUT_NODE = True
 
-    CATEGORY = CATEGORY_NAME
+    CATEGORY = CATEGORY_NAME + "/HYDiT_native"
 
     def start(self, **kwargs):
         importlib.reload(mz_train_tools_core_HYDiT)
@@ -850,7 +851,7 @@ class MZ_HYDiTSimpleT2I:
 
     FUNCTION = "start"
 
-    CATEGORY = CATEGORY_NAME
+    CATEGORY = CATEGORY_NAME + "/HYDiT_native"
 
     def start(self, **kwargs):
         importlib.reload(mz_train_tools_core_HYDiT)
@@ -900,5 +901,5 @@ class MZ_TrainToolsDebug:
         return (debug,)
 
 
-NODE_CLASS_MAPPINGS["MZ_TrainToolsDebug"] = MZ_TrainToolsDebug
-NODE_DISPLAY_NAME_MAPPINGS["MZ_TrainToolsDebug"] = f"{AUTHOR_NAME} - TrainToolsDebug"
+# NODE_CLASS_MAPPINGS["MZ_TrainToolsDebug"] = MZ_TrainToolsDebug
+# NODE_DISPLAY_NAME_MAPPINGS["MZ_TrainToolsDebug"] = f"{AUTHOR_NAME} - TrainToolsDebug"

@@ -15,7 +15,7 @@
     "lr_scheduler": "cosine_with_restarts",
     "optimizer_type": "AdamW",
     "save_every_n_epochs": "20",
-    "shuffle_caption": true,
+    "shuffle_caption": false,
     "lr_warmup_steps": "0",
     "save_precision": "fp16",
     "lr_scheduler_num_cycles": "1",
