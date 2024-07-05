@@ -13,7 +13,7 @@
 2. Restart ComfyUI.
  
 ## Nodes 
-### MZ_KohyaSS_KohakuBlueleaf_HYHiDInitWorkspace and MZ_KohyaSS_KohakuBlueleaf_HYHiDLoraTrain
+### MZ_KohyaSS_KohakuBlueleaf_HYHiDInitWorkspace | MZ_KohyaSS_KohakuBlueleaf_HYHiDLoraTrain
 ![image](https://github.com/MinusZoneAI/ComfyUI-TrainTools-MZ/assets/5035199/56d4e2cf-aaa6-4b05-95b1-003ed551c757)
 
 ### MZ_KohyaSSInitWorkspace
