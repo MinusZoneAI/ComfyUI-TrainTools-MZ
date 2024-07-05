@@ -182,6 +182,9 @@ def MZ_HYDiTDatasetConfig_call(args={}):
 
 
 HYDiT_MODEL = {
+    "HunyuanDiT-v1.2/t2i/model/pytorch_model_module.pt": {
+        "url": "https://www.modelscope.cn/models/wailovet/hy1.2/resolve/master/t2i/model/pytorch_model_module.pt",
+    },
     "HunyuanDiT/t2i/model/pytorch_model_ema.pt": {
         "url": "https://www.modelscope.cn/models/wailovet/hy1.1/resolve/master/t2i/model/pytorch_model_ema.pt",
     },
@@ -238,11 +241,21 @@ def check_model_auto_download(args):
     hunyuan_base_path = os.path.join(
         Utils.get_comfyui_models_path(), "hunyuan")
     if unet_path == "auto":
-        ema_to_module = args.get("ema_to_module", "enable") == "enable"
-        if ema_to_module:
-            download_file = "HunyuanDiT/t2i/model/pytorch_model_ema.pt"
+        version = args.get("version", None)
+        if version is None:
+            ema_to_module = args.get("ema_to_module", "enable") == "enable"
+            if ema_to_module:
+                download_file = "HunyuanDiT/t2i/model/pytorch_model_ema.pt"
+            else:
+                download_file = "HunyuanDiT/t2i/model/pytorch_model_module.pt"
         else:
-            download_file = "HunyuanDiT/t2i/model/pytorch_model_module.pt"
+            if version == "1.2":
+                download_file = "HunyuanDiT-v1.2/t2i/model/pytorch_model_module.pt"
+            elif version == "1.1":
+                download_file = "HunyuanDiT/t2i/model/pytorch_model_module.pt"
+            else:
+                raise Exception(f"未知的版本号: {version}")
+            
         download_fullpath = os.path.join(
             hunyuan_base_path, download_file)
         if not os.path.exists(download_fullpath):

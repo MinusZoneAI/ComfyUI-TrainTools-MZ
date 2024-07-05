@@ -1,9 +1,9 @@
 {
   "metadata": {
-    "train_type": "lora_sdxl"
+    "train_type": "lora_hunyuan1_2",
+    "version": "1.2"
   },
   "train_config": {
-    "pretrained_model_name_or_path": "",
     "max_train_steps": "4500",
     "xformers": true,
     "sdpa": false,
@@ -11,8 +11,8 @@
     "mixed_precision": "fp16",
     "cache_latents": true,
     "cache_latents_to_disk": true,
-    "network_dim": "16",
-    "network_alpha": "8",
+    "network_dim": "4",
+    "network_alpha": "4",
     "network_module": "networks.lora",
     "network_train_unet_only": true,
     "learning_rate": "1e-5",
@@ -25,10 +25,11 @@
     "lr_scheduler_num_cycles": "1",
     "persistent_data_loader_workers": true,
     "no_metadata": true,
-    "noise_offset": "0.1",
+    "noise_offset": "0.00",
     "output_dir": "",
     "output_name": "",
     "no_half_vae": true,
-    "lowram": false
+    "lowram": false,
+    "max_token_length": "150"
   }
 }

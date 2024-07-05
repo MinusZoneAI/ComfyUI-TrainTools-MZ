@@ -95,7 +95,7 @@ NODE_CLASS_MAPPINGS["MZ_KohyaSSDatasetConfig"] = MZ_KohyaSSDatasetConfig
 NODE_DISPLAY_NAME_MAPPINGS["MZ_KohyaSSDatasetConfig"] = f"{AUTHOR_NAME} - KohyaSSDatasetConfig"
 
 
-class MZ_KohyaSSUseConfig:
+class MZ_KohyaSSUseConfig_oldversion:
     train_config_template_dir = os.path.join(
         os.path.dirname(__file__), "configs", "kohya_ss_lora"
     )
@@ -127,7 +127,7 @@ class MZ_KohyaSSUseConfig:
     RETURN_NAMES = ("train_config",)
 
     FUNCTION = "start"
-    CATEGORY = CATEGORY_NAME
+    CATEGORY = CATEGORY_NAME + "/v1"
 
     def start(self, **kwargs):
         importlib.reload(mz_train_tools_core)
@@ -135,8 +135,9 @@ class MZ_KohyaSSUseConfig:
         return mz_train_tools_core.MZ_KohyaSSUseConfig_call(kwargs)
 
 
-NODE_CLASS_MAPPINGS["MZ_KohyaSSUseConfig"] = MZ_KohyaSSUseConfig
-NODE_DISPLAY_NAME_MAPPINGS["MZ_KohyaSSUseConfig"] = f"{AUTHOR_NAME} - KohyaSSUseConfig"
+NODE_CLASS_MAPPINGS["MZ_KohyaSSUseConfig"] = MZ_KohyaSSUseConfig_oldversion
+NODE_DISPLAY_NAME_MAPPINGS[
+    "MZ_KohyaSSUseConfig"] = f"{AUTHOR_NAME} - KohyaSSUseConfig(old version)"
 
 
 class MZ_KohyaSSAdvConfig:
@@ -148,6 +149,8 @@ class MZ_KohyaSSAdvConfig:
                 "sdpa": (["enable", "disable"], {"default": "disable"}),
                 "fp8_base": (["enable", "disable"], {"default": "disable"}),
                 "mixed_precision": (["no", "fp16", "bf16"], {"default": "fp16"}),
+                "gradient_accumulation_steps": ("INT", {"default": 1}),
+                "gradient_checkpointing": (["enable", "disable"], {"default": "disable"}),
                 "cache_latents": (["enable", "disable"], {"default": "enable"}),
                 "cache_latents_to_disk": (["enable", "disable"], {"default": "enable"}),
                 "network_dim": ("INT", {"default": 16}),
@@ -226,7 +229,7 @@ class AlwaysEqualProxy(str):
         return False
 
 
-class MZ_KohyaSSLoraTrain:
+class MZ_KohyaSSTrain_oldversion:
 
     @classmethod
     def INPUT_TYPES(s):
@@ -283,16 +286,117 @@ class MZ_KohyaSSLoraTrain:
     RETURN_NAMES = ()
     OUTPUT_NODE = True
     FUNCTION = "start"
-    CATEGORY = CATEGORY_NAME
+    CATEGORY = CATEGORY_NAME + "/v1"
 
     def start(self, **kwargs):
         importlib.reload(mz_train_tools_core)
         return mz_train_tools_core.MZ_KohyaSSTrain_call(kwargs)
 
 
-NODE_CLASS_MAPPINGS["MZ_KohyaSSTrain"] = MZ_KohyaSSLoraTrain
+NODE_CLASS_MAPPINGS["MZ_KohyaSSTrain"] = MZ_KohyaSSTrain_oldversion
 NODE_DISPLAY_NAME_MAPPINGS[
     "MZ_KohyaSSTrain"] = f"{AUTHOR_NAME} - KohyaSSTrain(old version)"
+
+
+class MZ_KohyaSSLoraTrain:
+    train_config_template_dir = os.path.join(
+        os.path.dirname(__file__), "configs", "kohya_ss_lora"
+    )
+
+    @classmethod
+    def INPUT_TYPES(s):
+        loras = [
+            "latest",
+            "empty",
+        ]
+
+        workspaces_dir = os.path.join(
+            folder_paths.output_directory, "mz_train_workspaces")
+
+        # 使用walk查询所有的workspace中的所有lora模型,lora存放在每个workspace的output目录下
+        workspaces_loras = []
+        for root, dirs, files in os.walk(workspaces_dir):
+
+            # 排除隐藏文件夹
+            dirs[:] = [d for d in dirs if not d.startswith(".")]
+            if root.endswith("output"):
+                for file in files:
+                    if file.endswith(".safetensors"):
+                        workspaces_loras.append(
+                            os.path.join(root, file)
+                        )
+
+        # 按创建时间排序
+        workspaces_loras = sorted(
+            workspaces_loras, key=lambda x: os.path.getctime(x), reverse=True)
+
+        comfyui_full_loras = []
+        comfyui_loras = folder_paths.get_filename_list("loras")
+        for lora in comfyui_loras:
+            lora_path = folder_paths.get_full_path("loras", lora)
+            comfyui_full_loras.append(lora_path)
+
+        # 按创建时间排序
+        comfyui_full_loras = sorted(
+            comfyui_full_loras, key=lambda x: os.path.getctime(x), reverse=True)
+
+        loras = loras + workspaces_loras + comfyui_full_loras
+
+        train_config_templates = Utils.listdir(s.train_config_template_dir)
+
+        # 去掉json后缀
+        train_config_templates = [os.path.splitext(x)[0]
+                                  for x in train_config_templates]
+        return {
+            "required": {
+                "workspace_config": ("MZ_TT_SS_WorkspaceConfig",),
+                "train_config_template": (train_config_templates,),
+                "ckpt_name": (folder_paths.get_filename_list("checkpoints"), ),
+                "max_train_steps": ("INT", {"default": 0, "min": 0, "max": 0x7fffffff}),
+                "max_train_epochs": ("INT", {"default": 100, "min": 0, "max": 0x7fffffff}),
+                "save_every_n_epochs": ("INT", {"default": 10}),
+                "learning_rate": ("STRING", {"default": "1e-5"}),
+
+                "base_lora": (loras, {"default": "latest"}),
+                "sample_generate": (["enable", "disable"], {"default": "enable"}),
+                "sample_prompt": ("STRING", {"default:": "", "dynamicPrompts": True, "multiline": True}),
+            },
+            "optional": {
+                "advanced_config": ("MZ_TT_SS_AdvConfig",),
+                "caption_completed_flag": (AlwaysEqualProxy("*"),),
+            },
+        }
+
+    RETURN_TYPES = ()
+    RETURN_NAMES = ()
+    OUTPUT_NODE = True
+    FUNCTION = "start"
+    CATEGORY = CATEGORY_NAME
+
+    def start(self, **kwargs):
+        importlib.reload(mz_train_tools_core)
+
+        train_config = {
+            "workspace_config": kwargs["workspace_config"],
+            "train_config_template": kwargs["train_config_template"],
+            "ckpt_name": kwargs["ckpt_name"],
+            "max_train_steps": kwargs["max_train_steps"],
+            "max_train_epochs": kwargs["max_train_epochs"],
+            "save_every_n_epochs": kwargs["save_every_n_epochs"],
+            "learning_rate": kwargs["learning_rate"],
+        }
+
+        train_config["train_config_template_dir"] = self.train_config_template_dir
+
+        advanced_config = kwargs.get("advanced_config", None)
+
+        if advanced_config is not None:
+            for k, v in advanced_config.items():
+                train_config[k] = v
+
+        kwargs["train_config"] = train_config
+        return mz_train_tools_core.MZ_KohyaSSTrain_call(kwargs)
+
 
 NODE_CLASS_MAPPINGS["MZ_KohyaSSLoraTrain"] = MZ_KohyaSSLoraTrain
 NODE_DISPLAY_NAME_MAPPINGS[
@@ -346,6 +450,102 @@ class MZ_KohyaSSControlnetTrain:
 NODE_CLASS_MAPPINGS["MZ_KohyaSSControlnetTrain"] = MZ_KohyaSSControlnetTrain
 NODE_DISPLAY_NAME_MAPPINGS[
     "MZ_KohyaSSControlnetTrain"] = f"{AUTHOR_NAME} - KohyaSSTrain(controlnet)"
+
+
+class MZ_KohyaSS_KohakuBlueleaf_HYHiDLoraTrain:
+    KohyaSSLoraTrain = MZ_KohyaSSLoraTrain()
+
+    @classmethod
+    def INPUT_TYPES(s):
+        models, folders, vae_models, unet_models, loras = HYDiT_paths()
+        _kohya_input_types = s.KohyaSSLoraTrain.INPUT_TYPES()
+
+        # "unet_path": (["auto"] + models + unet_models, {"default": "auto"}),
+        #         "ema_to_module": (["enable", "disable"], {"default": "enable"}),
+        #         "vae_ema_path": (["auto"] + folders + vae_models, {"default": "auto"}),
+        #         "text_encoder_path": (["auto"] + folders, {"default": "auto"}),
+        #         "tokenizer_path": (["auto"] + folders, {"default": "auto"}),
+        #         "t5_encoder_path": (["none", "auto"] + folders, {"default": "none"}),
+        kohya_input_types = {"required": {}, "optional": {}}
+        kohya_input_types["required"]["unet_path"] = (
+            ["auto"] + models + unet_models, {"default": "auto"})
+        kohya_input_types["required"]["vae_ema_path"] = (
+            ["auto"] + folders + vae_models, {"default": "auto"})
+        kohya_input_types["required"]["text_encoder_path"] = (
+            ["auto"] + folders, {"default": "auto"})
+        kohya_input_types["required"]["tokenizer_path"] = (
+            ["auto"] + folders, {"default": "auto"})
+        kohya_input_types["required"]["t5_encoder_path"] = (
+            ["none", "auto"] + folders, {"default": "none"})
+
+        for k, v in _kohya_input_types["required"].items():
+            if k == "ckpt_name":
+                continue
+            if k == "ema_to_module":
+                continue
+            kohya_input_types["required"][k] = v
+
+        for k, v in _kohya_input_types["optional"].items():
+            kohya_input_types["optional"][k] = v
+
+        return kohya_input_types
+
+    RETURN_TYPES = ()
+    RETURN_NAMES = ()
+    OUTPUT_NODE = True
+    FUNCTION = "start"
+    CATEGORY = CATEGORY_NAME
+
+    def start(self, **kwargs):
+        kwargs["hunyuan_models_config"] = {
+            "unet_path": kwargs["unet_path"],
+            "vae_ema_path": kwargs["vae_ema_path"],
+            "text_encoder_path": kwargs["text_encoder_path"],
+            "tokenizer_path": kwargs["tokenizer_path"],
+            "t5_encoder_path": kwargs["t5_encoder_path"],
+        }
+        kwargs["ckpt_name"] = None 
+        return self.KohyaSSLoraTrain.start(**kwargs)
+
+
+NODE_CLASS_MAPPINGS["MZ_KohyaSS_KohakuBlueleaf_HYHiDLoraTrain"] = MZ_KohyaSS_KohakuBlueleaf_HYHiDLoraTrain
+NODE_DISPLAY_NAME_MAPPINGS[
+    "MZ_KohyaSS_KohakuBlueleaf_HYHiDLoraTrain"] = f"{AUTHOR_NAME} - KohyaSS_KohakuBlueleaf_HYHiDLoraTrain"
+
+
+class MZ_KohyaSS_KohakuBlueleaf_HYHiDInitWorkspace:
+    @classmethod
+    def INPUT_TYPES(s):
+        return {
+            "required": {
+                "lora_name": ("STRING", {"default": ""}),
+                "branch": ("STRING", {"default": "0dc79edc01f2000de1dad5ad6d20d8b099bfafe2"}),
+                "source": ([
+                    "github",
+                    "githubfast",
+                    "521github",
+                    "kkgithub",
+                ], {"default": "github"}),
+                "seed": ("INT", {"default": 0}),
+            },
+        }
+
+    RETURN_TYPES = ("MZ_TT_SS_WorkspaceConfig",)
+    RETURN_NAMES = ("workspace_config",)
+
+    FUNCTION = "start"
+    CATEGORY = CATEGORY_NAME
+
+    def start(self, **kwargs):
+        importlib.reload(mz_train_tools_core)
+        kwargs["branch_repoid"] = "KohakuBlueleaf/sd-scripts"
+        kwargs["branch_local_name"] = "KohakuBlueleaf_kohya_ss_lora"
+        return mz_train_tools_core.MZ_KohyaSSInitWorkspace_call(kwargs)
+
+
+NODE_CLASS_MAPPINGS["MZ_KohyaSS_KohakuBlueleaf_HYHiDInitWorkspace"] = MZ_KohyaSS_KohakuBlueleaf_HYHiDInitWorkspace
+NODE_DISPLAY_NAME_MAPPINGS[
+    "MZ_KohyaSS_KohakuBlueleaf_HYHiDInitWorkspace"] = f"{AUTHOR_NAME} - KohyaSS_KohakuBlueleaf_HYHiDInitWorkspace"
 
 
 class MZ_LoadImagesFromDirectoryPath:
@@ -461,36 +661,6 @@ NODE_CLASS_MAPPINGS["MZ_HYDiTDatasetConfig"] = MZ_HYDiTDatasetConfig
 NODE_DISPLAY_NAME_MAPPINGS["MZ_HYDiTDatasetConfig"] = f"{AUTHOR_NAME} - HYDiTDatasetConfig"
 
 
-# class MZ_HYDiTUseConfig:
-#     @classmethod
-#     def INPUT_TYPES(s):
-
-#         return {
-#             "required": {
-#                 "workspace_config": ("MZ_TT_HYDiT_WorkspaceConfig",),
-#                 "workspace_images_dir": ("STRING", {"forceInput": True}),
-#             },
-#             "optional": {
-#             }
-#         }
-
-#     RETURN_TYPES = ("MZ_TT_HYDiT_TrainConfig",)
-#     RETURN_NAMES = ("train_config",)
-
-#     FUNCTION = "start"
-
-#     CATEGORY = CATEGORY_NAME
-
-#     def start(self, **kwargs):
-#         importlib.reload(mz_train_tools_core_HYDiT)
-#         # kwargs["train_config_template_dir"] = self.train_config_template_dir
-#         return mz_train_tools_core_HYDiT.MZ_HYDiTUseConfig_call(kwargs)
-
-
-# NODE_CLASS_MAPPINGS["MZ_HYDiTUseConfig"] = MZ_HYDiTUseConfig
-# NODE_DISPLAY_NAME_MAPPINGS["MZ_HYDiTUseConfig"] = f"{AUTHOR_NAME} - HYDiTUseConfig"
-
-
 class MZ_HYDiTAdvConfig:
     @classmethod
     def INPUT_TYPES(s):
@@ -548,30 +718,36 @@ NODE_CLASS_MAPPINGS["MZ_HYDiTAdvConfig"] = MZ_HYDiTAdvConfig
 NODE_DISPLAY_NAME_MAPPINGS["MZ_HYDiTAdvConfig"] = f"{AUTHOR_NAME} - HYDiTAdvConfig"
 
 
+def HYDiT_paths():
+    hunyuan_models_path = os.path.join(
+        Utils.get_comfyui_models_path(), "hunyuan")
+    os.makedirs(hunyuan_models_path, exist_ok=True)
+
+    models = Utils.get_models_by_folder(hunyuan_models_path)
+
+    folders = Utils.get_folders_by_folder(hunyuan_models_path)
+
+    vae_models = Utils.get_models_by_folder(
+        os.path.join(Utils.get_comfyui_models_path(), "vae"))
+    unet_models = Utils.get_models_by_folder(
+        os.path.join(Utils.get_comfyui_models_path(), "unet"))
+
+    workspaces_root = os.path.join(
+        folder_paths.output_directory, "mz_train_workspaces")
+
+    loras = mz_train_tools_core_HYDiT.search_loras([
+        workspaces_root,
+        os.path.join(Utils.get_comfyui_models_path(), "loras"),
+    ])
+
+    return models, folders, vae_models, unet_models, loras
+
+
 class MZ_HYDiTTrain:
     @classmethod
     def INPUT_TYPES(s):
 
-        hunyuan_models_path = os.path.join(
-            Utils.get_comfyui_models_path(), "hunyuan")
-        os.makedirs(hunyuan_models_path, exist_ok=True)
-
-        models = Utils.get_models_by_folder(hunyuan_models_path)
-
-        folders = Utils.get_folders_by_folder(hunyuan_models_path)
-
-        vae_models = Utils.get_models_by_folder(
-            os.path.join(Utils.get_comfyui_models_path(), "vae"))
-        unet_models = Utils.get_models_by_folder(
-            os.path.join(Utils.get_comfyui_models_path(), "unet"))
-
-        workspaces_root = os.path.join(
-            folder_paths.output_directory, "mz_train_workspaces")
-
-        loras = mz_train_tools_core_HYDiT.search_loras([
-            workspaces_root,
-            os.path.join(Utils.get_comfyui_models_path(), "loras"),
-        ])
+        models, folders, vae_models, unet_models, loras = HYDiT_paths()
 
         return {
             "required": {
