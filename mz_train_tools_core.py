@@ -27,11 +27,15 @@ git_accelerate_urls = {
 
 def MZ_KohyaSSInitWorkspace_call(args={}):
     mz_dir = Utils.get_minus_zone_models_path()
-    git_url = "https://github.com/kohya-ss/sd-scripts"
+
+    branch_repoid = args.get("branch_repoid", "kohya-ss/sd-scripts")
+    branch_local_name = args.get("branch_local_name", "kohya_ss_lora")
+
+    git_url = f"https://github.com/{branch_repoid}"
     source = args.get("source", "github")
-    kohya_ss_lora_dir = os.path.join(mz_dir, "train_tools", "kohya_ss_lora")
+    kohya_ss_lora_dir = os.path.join(mz_dir, "train_tools", branch_local_name)
     if git_accelerate_urls.get(source, None) is not None:
-        git_url = f"https://{git_accelerate_urls[source]}/kohya-ss/sd-scripts"
+        git_url = f"https://{git_accelerate_urls[source]}/{branch_repoid}"
     try:
         if not os.path.exists(kohya_ss_lora_dir) or not os.path.exists(os.path.join(kohya_ss_lora_dir, ".git")):
             subprocess.run(
@@ -52,7 +56,7 @@ def MZ_KohyaSSInitWorkspace_call(args={}):
             f"当前分支(current branch): {long_current_branch}({short_current_branch})")
         print(f"目标分支(target branch): {branch}")
 
-        if branch != result.stdout.decode() and branch != short_result.stdout.decode():
+        if branch != long_current_branch and branch != short_current_branch:
             subprocess.run(
                 ["git", "remote", "set-branches", "origin", branch], cwd=kohya_ss_lora_dir, check=True)
             subprocess.run(
@@ -186,26 +190,26 @@ def MZ_KohyaSSUseConfig_call(args={}):
         raise Exception(f"工作区不存在: {workspace_dir}")
 
     workspace_config_file = os.path.join(workspace_dir, "config.json")
+
     train_config_template = args.get("train_config_template", None)
-    if not os.path.exists(workspace_config_file):
-        train_config_template_dir = args.get("train_config_template_dir", None)
+    train_config_template_dir = args.get("train_config_template_dir", None)
+    train_config_template_file = os.path.join(
+        train_config_template_dir, train_config_template + ".json")
 
-        train_config_template_file = os.path.join(
-            train_config_template_dir, train_config_template + ".json")
-
-        shutil.copy(train_config_template_file, workspace_config_file)
+    # if not os.path.exists(workspace_config_file):
+    #     train_config_template_dir = args.get("train_config_template_dir", None)
+    #     train_config_template_file = os.path.join(
+    #         train_config_template_dir, train_config_template + ".json")
+    #     shutil.copy(train_config_template_file, workspace_config_file)
 
     config = None
-    with open(workspace_config_file, "r", encoding="utf-8") as f:
+    with open(train_config_template_file, "r", encoding="utf-8") as f:
         config = json.load(f)
         config["metadata"]["train_type"] = train_config_template
         ckpt_name = args.get("ckpt_name", "")
-        if ckpt_name == "":
-            raise Exception("未选择模型文件(ckpt_name is required)")
-
-        ckpt_path = folder_paths.get_full_path("checkpoints", ckpt_name)
-
-        config["train_config"]["pretrained_model_name_or_path"] = ckpt_path
+        if ckpt_name != "" and ckpt_name is not None:
+            ckpt_path = folder_paths.get_full_path("checkpoints", ckpt_name)
+            config["train_config"]["pretrained_model_name_or_path"] = ckpt_path
 
         # output_dir
         output_dir = os.path.join(workspace_dir, "output")
@@ -234,6 +238,8 @@ def MZ_KohyaSSUseConfig_call(args={}):
             args.get("learning_rate"))
 
         advanced_config = args.get("save_advanced_config", {}).copy()
+        if len(advanced_config) == 0:
+            advanced_config = args.get("advanced_config", {}).copy()
 
         for k in advanced_config:
             if type(advanced_config[k]) == str and advanced_config[k] == "":
@@ -338,15 +344,6 @@ def generate_toml_config(output_path, enable_bucket=True, resolution=512, batch_
         toml.dump(config, f)
 
 
-# def latent2image(previews, latent_file):
-#     samples = nodes.LoadLatent().load(latent_file)[0]
-#     with torch.no_grad():
-
-#         samples = samples["samples"].to("cuda")
-#         preview_bytes = previews.decode_latent_to_preview_image(
-#             "", samples)
-#     return preview_bytes[1]
-
 from PIL import Image
 
 
@@ -371,6 +368,8 @@ def get_sample_images(train_config):
             pil_image = Image.open(os.path.join(sample_images_dir, image_file))
             pil_images.append([pil_image])
             pre_render_texts_x.append(image_file)
+    if pil_images is None or len(pil_images) == 0:
+        return Image.new("RGB", (512, 512), (255, 255, 255))
     result = Utils.xy_image(
         pre_render_images=pil_images,
         pre_render_texts_x=pre_render_texts_x,
@@ -394,6 +393,8 @@ def run_hook_kohya_ss_run_file(kohya_ss_tool_dir, train_config, trainer_func, ot
     if trainer_func.find("sd1_5") != -1:
         taesd_type = "sd1_5"
     if trainer_func.find("sdxl") != -1:
+        taesd_type = "sdxl"
+    if trainer_func.find("hunyuan1_1") != -1:
         taesd_type = "sdxl"
 
     pb = Utils.progress_bar(train_config.get("max_train_steps"), taesd_type)
@@ -445,19 +446,18 @@ def run_hook_kohya_ss_run_file(kohya_ss_tool_dir, train_config, trainer_func, ot
 
 
 def MZ_KohyaSSTrain_call(args={}):
+    args = args.copy()
+    workspace_config = args.get("workspace_config", {})
 
-    # pb = Utils.progress_bar(1)
-    # previewer = pb.get_previewer()
-
-    # img = latent2image(previewer, "/tmp/sample_images_4.latent")
-
-    # pb.update(1, 1, img)
-    # raise Exception(f"MZ_KohyaSSTrain_call: {args}")
     train_config = args.get("train_config", {})
-    workspace_config = train_config.get("workspace_config", {})
+    MZ_KohyaSSUseConfig_call(train_config)
+
     workspace_name = workspace_config.get("workspace_name", None)
     workspace_dir = os.path.join(
         folder_paths.output_directory, "mz_train_workspaces", workspace_name)
+
+    if not os.path.exists(workspace_dir):
+        raise Exception(f"工作区不存在: {workspace_dir}")
 
     workspace_config_file = os.path.join(workspace_dir, "config.json")
 
@@ -471,8 +471,10 @@ def MZ_KohyaSSTrain_call(args={}):
     if config is None:
         raise Exception(f"读取配置文件失败: {workspace_config_file}")
 
+    branch_local_name = workspace_config.get(
+        "branch_local_name", "kohya_ss_lora")
     kohya_ss_tool_dir = os.path.join(
-        Utils.get_minus_zone_models_path(), "train_tools", "kohya_ss_lora")
+        Utils.get_minus_zone_models_path(), "train_tools", branch_local_name)
 
     if kohya_ss_tool_dir not in sys.path:
         sys.path.append(kohya_ss_tool_dir)
@@ -512,16 +514,14 @@ def MZ_KohyaSSTrain_call(args={}):
         if "network_dropout" in train_config:
             del train_config["network_dropout"]
 
-    
-
-
     base_controlnet = args.get("base_controlnet", "empty")
     if base_controlnet == "empty":
         pass
     elif base_controlnet == "latest":
         workspace_controlnet_dir = os.path.join(workspace_dir, "output")
         if os.path.exists(workspace_controlnet_dir):
-            workspace_controlnet_files = Utils.listdir(workspace_controlnet_dir)
+            workspace_controlnet_files = Utils.listdir(
+                workspace_controlnet_dir)
             workspace_controlnet_files = list(
                 filter(lambda x: x.endswith(".safetensors"), workspace_controlnet_files))
             workspace_controlnet_files = list(
@@ -538,11 +538,9 @@ def MZ_KohyaSSTrain_call(args={}):
         pass
 
     if base_controlnet != "empty" and os.path.exists(base_controlnet):
-        train_config["controlnet_model_name_or_path"] = base_controlnet 
-
+        train_config["controlnet_model_name_or_path"] = base_controlnet
 
     train_type = config.get("metadata").get("train_type")
-
 
     sample_generate = args.get("sample_generate", "enable")
     sample_prompt = args.get("sample_prompt", "")
@@ -565,12 +563,25 @@ def MZ_KohyaSSTrain_call(args={}):
             workspace_dir, "conditioning_images")
         conditioning_images_onec = ""
         if os.path.exists(conditioning_images_dir):
-            conditioning_images_onec = Utils.listdir(conditioning_images_dir)[0]
+            conditioning_images_onec = Utils.listdir(
+                conditioning_images_dir)[0]
             other_config["controlnet_image"] = os.path.join(
                 conditioning_images_dir, conditioning_images_onec)
-        
+
         run_hook_kohya_ss_run_file(
             kohya_ss_tool_dir, train_config, "run_controlnet_sd1_5", other_config)
+    elif train_type == "lora_hunyuan1_2" or train_type == "lora_hunyuan1_1":
+        hunyuan_models_config = args.get(
+            "hunyuan_models_config", {})
+        from .mz_train_tools_core_HYDiT import check_model_auto_download
+
+        hunyuan_models_config["version"] = config.get(
+            "metadata").get("version")
+        other_config["hunyuan_models_config"] = check_model_auto_download(
+            hunyuan_models_config)
+
+        run_hook_kohya_ss_run_file(
+            kohya_ss_tool_dir, train_config, "run_lora_hunyuan1_2", other_config)
     else:
         raise Exception(
             f"暂时不支持的训练类型: {train_type}")
@@ -578,3 +589,29 @@ def MZ_KohyaSSTrain_call(args={}):
     return (
         "训练完成",
     )
+
+
+def MZ_KohyaSS_KohakuBlueleaf_HYHiDSimpleT2I_call(args={}):
+    # "unet_path": (["auto"] + models + unet_models, {"default": "auto"}),
+    # "vae_ema_path": (["auto"] + folders + vae_models, {"default": "auto"}),
+    # "text_encoder_path": (["auto"] + folders, {"default": "auto"}),
+    # "tokenizer_path": (["auto"] + folders, {"default": "auto"}),
+    # "t5_encoder_path": (["none", "auto"] + folders, {"default": "none"}),
+    # "lora_path": (["none"] + comfyui_full_loras, {"default": "none"}),
+    # "seed": ("INT", {"default": 0}),
+    # "steps": ("INT", {"default": 20}),
+    # "cfg": ("FLOAT", {"default": 5.0, "min": 0.0, "max": 100.0, "step": 0.1, "round": 0.01}),
+    # "scheduler": ([
+    #     "euler_ancestral", "dpmpp_2m_sde"
+    # ], {"default": "ddpm"}),
+    # "prompt": ("STRING", {"default:": "", "dynamicPrompts": True, "multiline": True}),
+    # "negative_prompt": ("STRING", {"default:": "", "dynamicPrompts": True, "multiline": True}),
+    # "width": ("INT", {"default": 512, "max": 8192, "step": 16}),
+    # "height": ("INT", {"default": 512, "max": 8192, "step": 16}),
+    # "keep_device": (["enable", "disable"], {"default": "enable"}),
+
+    args = args.copy()
+    from .mz_train_tools_core_HYDiT import check_model_auto_download
+    args = check_model_auto_download(args)
+
+    from .hook_kohya_ss_hunyuan_pipe import run_kohya_ss_hunyuan_pipe

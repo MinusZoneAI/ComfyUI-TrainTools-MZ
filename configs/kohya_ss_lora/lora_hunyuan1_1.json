@@ -1,9 +1,9 @@
 {
   "metadata": {
-    "train_type": "lora_sdxl"
+    "train_type": "lora_hunyuan1_1",
+    "version": "1.1"
   },
   "train_config": {
-    "pretrained_model_name_or_path": "",
     "max_train_steps": "4500",
     "xformers": true,
     "sdpa": false,
@@ -29,6 +29,9 @@
     "output_dir": "",
     "output_name": "",
     "no_half_vae": true,
-    "lowram": false
+    "v_parameterization": true,
+    "lowram": false,
+    "max_token_length": "225",
+    "use_extra_cond": true
   }
 }
