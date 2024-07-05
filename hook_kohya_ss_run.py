@@ -47,6 +47,18 @@ def utils_sample_images(*args, **kwargs):
     return sample_images(None, *args, **kwargs)
 
 
+
+def get_datasets(): 
+    train_config = json.loads(train_config_json)
+    import library.config_util   
+    user_config = library.config_util.load_user_config(train_config.get("dataset_config", None))
+    datasets = user_config.get("datasets", [])
+    if len(datasets) == 0:
+        return None
+    return datasets[0]
+
+
+    
 def sample_images(self, *args, **kwargs):
     #  accelerator, args, epoch, global_step, device, vae, tokenizer, text_encoder, unet
     accelerator = args[0]
@@ -66,6 +78,11 @@ def sample_images(self, *args, **kwargs):
 
     if epoch is not None and cmd_args.save_every_n_epochs is not None and epoch % cmd_args.save_every_n_epochs == 0:
 
+        datasets = get_datasets()
+        height = datasets.get("height", 512)
+        width = datasets.get("width", 512)
+        print(f"sample_images: height = {height}, width = {width}")
+
         prompt_dict_list = other_config.get("prompt_dict_list", [])
         if len(prompt_dict_list) == 0:
             sample_prompt = other_config.get("sample_prompt", None)
@@ -80,6 +97,8 @@ def sample_images(self, *args, **kwargs):
                     "sample_sampler": "euler_a",
                     "sample_steps": 20,
                     "scale": 5.0,
+                    "height": height,
+                    "width": width,
                 }
 
                 prompt_dict_list.append(prompt_dict)
