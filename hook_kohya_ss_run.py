@@ -78,7 +78,10 @@ def sample_images(self, *args, **kwargs):
     if epoch is not None and cmd_args.save_every_n_epochs is not None and epoch % cmd_args.save_every_n_epochs == 0:
 
         datasets = get_datasets()
-        height, width = datasets.get("resolution", (512, 512)) 
+        resolution = datasets.get("resolution", (512, 512)) 
+        if isinstance(resolution, int):
+            resolution = (resolution, resolution)
+        height, width = resolution
         print(f"sample_images: height = {height}, width = {width}")
 
         prompt_dict_list = other_config.get("prompt_dict_list", [])
