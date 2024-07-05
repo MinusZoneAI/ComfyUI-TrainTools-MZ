@@ -589,3 +589,29 @@ def MZ_KohyaSSTrain_call(args={}):
     return (
         "训练完成",
     )
+
+
+def MZ_KohyaSS_KohakuBlueleaf_HYHiDSimpleT2I_call(args={}):
+    # "unet_path": (["auto"] + models + unet_models, {"default": "auto"}),
+    # "vae_ema_path": (["auto"] + folders + vae_models, {"default": "auto"}),
+    # "text_encoder_path": (["auto"] + folders, {"default": "auto"}),
+    # "tokenizer_path": (["auto"] + folders, {"default": "auto"}),
+    # "t5_encoder_path": (["none", "auto"] + folders, {"default": "none"}),
+    # "lora_path": (["none"] + comfyui_full_loras, {"default": "none"}),
+    # "seed": ("INT", {"default": 0}),
+    # "steps": ("INT", {"default": 20}),
+    # "cfg": ("FLOAT", {"default": 5.0, "min": 0.0, "max": 100.0, "step": 0.1, "round": 0.01}),
+    # "scheduler": ([
+    #     "euler_ancestral", "dpmpp_2m_sde"
+    # ], {"default": "ddpm"}),
+    # "prompt": ("STRING", {"default:": "", "dynamicPrompts": True, "multiline": True}),
+    # "negative_prompt": ("STRING", {"default:": "", "dynamicPrompts": True, "multiline": True}),
+    # "width": ("INT", {"default": 512, "max": 8192, "step": 16}),
+    # "height": ("INT", {"default": 512, "max": 8192, "step": 16}),
+    # "keep_device": (["enable", "disable"], {"default": "enable"}),
+
+    args = args.copy()
+    from .mz_train_tools_core_HYDiT import check_model_auto_download
+    args = check_model_auto_download(args)
+
+    from .hook_kohya_ss_hunyuan_pipe import run_kohya_ss_hunyuan_pipe

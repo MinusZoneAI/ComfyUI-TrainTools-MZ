@@ -29,7 +29,9 @@
     "output_dir": "",
     "output_name": "",
     "no_half_vae": true,
+    "v_parameterization": true,
     "lowram": false,
-    "max_token_length": "150"
+    "max_token_length": "150",
+    "use_extra_cond": false
   }
 }

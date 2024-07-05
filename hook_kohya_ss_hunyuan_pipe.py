@@ -258,7 +258,7 @@ class HuanYuanDiffusionLongPromptWeightingPipeline:
                 x1 * sigmas[0],
                 sigmas,
             )
-            # torch.cuda.empty_cache()
+            torch.cuda.empty_cache()
         latents = sample
         return latents
 

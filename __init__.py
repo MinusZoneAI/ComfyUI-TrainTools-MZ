@@ -549,6 +549,50 @@ NODE_DISPLAY_NAME_MAPPINGS[
     "MZ_KohyaSS_KohakuBlueleaf_HYHiDInitWorkspace"] = f"{AUTHOR_NAME} - KohyaSS_KohakuBlueleaf_HYHiDInitWorkspace"
 
 
+class MZ_KohyaSS_KohakuBlueleaf_HYHiDSimpleT2I:
+    @classmethod
+    def INPUT_TYPES(s):
+        models, folders, vae_models, unet_models, _ = HYDiT_paths()
+        comfyui_full_loras = []
+        comfyui_loras = folder_paths.get_filename_list("loras")
+        for lora in comfyui_loras:
+            lora_path = folder_paths.get_full_path("loras", lora)
+            comfyui_full_loras.append(lora_path)
+        return {
+            "required": {
+                "unet_path": (["auto"] + models + unet_models, {"default": "auto"}),
+                "vae_ema_path": (["auto"] + folders + vae_models, {"default": "auto"}),
+                "text_encoder_path": (["auto"] + folders, {"default": "auto"}),
+                "tokenizer_path": (["auto"] + folders, {"default": "auto"}),
+                "t5_encoder_path": (["none", "auto"] + folders, {"default": "none"}),
+                "lora_path": (["none"] + comfyui_full_loras, {"default": "none"}),
+                "seed": ("INT", {"default": 0}),
+                "steps": ("INT", {"default": 20}),
+                "cfg": ("FLOAT", {"default": 5.0, "min": 0.0, "max": 100.0, "step": 0.1, "round": 0.01}),
+                "scheduler": ([
+                    "euler_ancestral", "dpmpp_2m_sde"
+                ], {"default": "ddpm"}),
+                "prompt": ("STRING", {"default:": "", "dynamicPrompts": True, "multiline": True}),
+                "negative_prompt": ("STRING", {"default:": "", "dynamicPrompts": True, "multiline": True}),
+                "width": ("INT", {"default": 512, "max": 8192, "step": 16}),
+                "height": ("INT", {"default": 512, "max": 8192, "step": 16}),
+                "keep_device": (["enable", "disable"], {"default": "enable"}),
+            },
+            "optional": {
+            }
+        }
+
+    RETURN_TYPES = ("IMAGE",)
+    RETURN_NAMES = ("images",)
+
+    FUNCTION = "start"
+    CATEGORY = CATEGORY_NAME + "/kohya_ss_HYDiT_kohakublueleaf"
+
+    def start(self, **kwargs):
+        importlib.reload(mz_train_tools_core)
+        return mz_train_tools_core.MZ_KohyaSS_KohakuBlueleaf_HYHiDSimpleT2I_call(kwargs)
+
+
 class MZ_LoadImagesFromDirectoryPath:
     @classmethod
     def INPUT_TYPES(s):
