@@ -6,13 +6,15 @@
 在ComfyUI中进行lora微调的节点,依赖于kohya-ss/sd-scripts等训练工具(Nodes for fine-tuning lora in ComfyUI, dependent on training tools such as kohya-ss/sd-scripts) 
 
 ## Recent changes 
-[20240706] 支持混元lora训练,脚本来自https://github.com/KohakuBlueleaf/sd-scripts/tree/HunYuanDiT分支
+[20240706] 支持混元lora训练,脚本来自https://github.com/KohakuBlueleaf/sd-scripts/tree/HunYuanDiT  分支
 
 ## Installation
 1. Clone this repo into `custom_nodes` folder.
 2. Restart ComfyUI.
  
 ## Nodes 
+### MZ_KohyaSS_KohakuBlueleaf_HYHiDInitWorkspace and MZ_KohyaSS_KohakuBlueleaf_HYHiDLoraTrain
+![image](https://github.com/MinusZoneAI/ComfyUI-TrainTools-MZ/assets/5035199/56d4e2cf-aaa6-4b05-95b1-003ed551c757)
 
 ### MZ_KohyaSSInitWorkspace
 初始化训练文件夹,文件夹位于output目录(Initialize the training folder, the folder in the output directory)
