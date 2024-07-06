@@ -776,7 +776,7 @@ def MZ_KohyaSS_KohakuBlueleaf_HYHiDSimpleT2I_call(args={}):
         style = torch.as_tensor([0] * 2, device=DEVICE)
         W = args.get("width")
         H = args.get("height")
-        
+
         size_cond = [H, W, H, W, 0, 0]
         image_meta_size = torch.as_tensor([size_cond] * 2, device=DEVICE)
         freqs_cis_img = calc_rope(H, W, patch_size, head_dim)
@@ -821,10 +821,14 @@ def MZ_KohyaSS_KohakuBlueleaf_HYHiDSimpleT2I_call(args={}):
             try:
                 i = args.get("i")
                 latents = args.get("denoised")
-                pil_img = preview.decode_latent_to_preview_image(
-                    None,
-                    latents,
-                )[1]
+                # 判断是否存在decode_latent_to_preview_image
+                if hasattr(preview, "decode_latent_to_preview_image"):
+                    pil_img = preview.decode_latent_to_preview_image(
+                        None,
+                        latents,
+                    )[1]
+                else:
+                    pil_img = None
                 pbar.update(i, STEPS, pil_img)
             except Exception as e:
                 print("generate_callback error:", e)
