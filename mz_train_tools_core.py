@@ -776,7 +776,7 @@ def MZ_KohyaSS_KohakuBlueleaf_HYHiDSimpleT2I_call(args={}):
         style = torch.as_tensor([0] * 2, device=DEVICE)
         W = args.get("width")
         H = args.get("height")
-        # src hw, dst hw, 0, 0
+        
         size_cond = [H, W, H, W, 0, 0]
         image_meta_size = torch.as_tensor([size_cond] * 2, device=DEVICE)
         freqs_cis_img = calc_rope(H, W, patch_size, head_dim)
