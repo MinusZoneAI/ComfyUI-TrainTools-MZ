@@ -560,22 +560,30 @@ class MZ_KohyaSS_KohakuBlueleaf_HYHiDSimpleT2I:
             comfyui_full_loras.append(lora_path)
         return {
             "required": {
+                "branch": ("STRING", {"default": "0dc79edc01f2000de1dad5ad6d20d8b099bfafe2"}),
+                "source": ([
+                    "github",
+                    "githubfast",
+                    "521github",
+                    "kkgithub",
+                ], {"default": "github"}),
+                "version": (["1.1", "1.2"], {"default": "1.2"}),
                 "unet_path": (["auto"] + models + unet_models, {"default": "auto"}),
                 "vae_ema_path": (["auto"] + folders + vae_models, {"default": "auto"}),
                 "text_encoder_path": (["auto"] + folders, {"default": "auto"}),
                 "tokenizer_path": (["auto"] + folders, {"default": "auto"}),
                 "t5_encoder_path": (["none", "auto"] + folders, {"default": "none"}),
-                "lora_path": (["none"] + comfyui_full_loras, {"default": "none"}),
+                "lora_path": (["none"] + comfyui_full_loras, {"default": "none"}), 
                 "seed": ("INT", {"default": 0}),
                 "steps": ("INT", {"default": 20}),
                 "cfg": ("FLOAT", {"default": 5.0, "min": 0.0, "max": 100.0, "step": 0.1, "round": 0.01}),
                 "scheduler": ([
                     "euler_ancestral", "dpmpp_2m_sde"
-                ], {"default": "ddpm"}),
+                ], {"default": "dpmpp_2m_sde"}),
                 "prompt": ("STRING", {"default:": "", "dynamicPrompts": True, "multiline": True}),
                 "negative_prompt": ("STRING", {"default:": "", "dynamicPrompts": True, "multiline": True}),
-                "width": ("INT", {"default": 512, "max": 8192, "step": 16}),
-                "height": ("INT", {"default": 512, "max": 8192, "step": 16}),
+                "width": ("INT", {"default": 1024, "max": 8192, "step": 16}),
+                "height": ("INT", {"default": 1024, "max": 8192, "step": 16}),
                 "keep_device": (["enable", "disable"], {"default": "enable"}),
             },
             "optional": {
@@ -590,7 +598,13 @@ class MZ_KohyaSS_KohakuBlueleaf_HYHiDSimpleT2I:
 
     def start(self, **kwargs):
         importlib.reload(mz_train_tools_core)
+        kwargs["branch_repoid"] = "KohakuBlueleaf/sd-scripts"
+        kwargs["branch_local_name"] = "KohakuBlueleaf_kohya_ss_lora"
         return mz_train_tools_core.MZ_KohyaSS_KohakuBlueleaf_HYHiDSimpleT2I_call(kwargs)
+
+
+NODE_CLASS_MAPPINGS["MZ_KohyaSS_KohakuBlueleaf_HYHiDSimpleT2I"] = MZ_KohyaSS_KohakuBlueleaf_HYHiDSimpleT2I
+NODE_DISPLAY_NAME_MAPPINGS["MZ_KohyaSS_KohakuBlueleaf_HYHiDSimpleT2I"] = f"{AUTHOR_NAME} - KohyaSS_KohakuBlueleaf_HYHiDSimpleT2I"
 
 
 class MZ_LoadImagesFromDirectoryPath:

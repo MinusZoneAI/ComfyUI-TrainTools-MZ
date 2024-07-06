@@ -169,6 +169,31 @@ class Utils:
         CACHE_POOL[key] = value
         return True
 
+    def model_cache_clean(model_type):
+        global CACHE_POOL
+        for key in list(CACHE_POOL.keys()):
+            if key.startswith(f"model_cache_{model_type}"):
+                del CACHE_POOL[key]
+        torch.cuda.empty_cache()
+        return True
+
+    def model_cache_get(model_type, model_path):
+        resp = Utils.cache_get(f"model_cache_{model_type}")
+        if resp is None:
+            return None
+        cache_model_path = resp.get("model_path")
+        if cache_model_path != model_path:
+            Utils.model_cache_clean(f"model_cache_{model_type}")
+            return None
+        return resp.get("model")
+
+    def model_cache_set(model_type, model_path, model):
+        key = f"model_cache_{model_type}"
+        if Utils.cache_get(key) is not None:
+            Utils.model_cache_clean(key)
+        Utils.cache_set(key, {"model_path": model_path, "model": model})
+        return True
+
     def get_minus_zone_models_path():
         models_path = os.path.join(
             folder_paths.models_dir, "minus_zone_models")
@@ -930,7 +955,7 @@ class Utils:
     def get_models_by_folder(dir_path):
         models = []
         for root, dirs, files in os.walk(dir_path):
-            # 排除隐藏文件夹    
+            # 排除隐藏文件夹
             dirs[:] = [d for d in dirs if not d.startswith('.')]
             for file in files:
                 if file.endswith(".pth") or file.endswith(".pt") or file.endswith(".pkl") or file.endswith(".onnx") or file.endswith(".safetensors"):
@@ -940,9 +965,172 @@ class Utils:
     def get_folders_by_folder(dir_path):
         folders = []
         for root, dirs, files in os.walk(dir_path):
-            
-            # 排除隐藏文件夹    
+
+            # 排除隐藏文件夹
             dirs[:] = [d for d in dirs if not d.startswith('.')]
             for dir in dirs:
                 folders.append(os.path.join(root, dir))
         return folders
+
+
+from torch import nn
+
+
+class CustomizeEmbedsModel(nn.Module):
+    dtype = torch.float16
+    shared = None
+    # x = torch.zeros(1, 1, 256, 2048)
+    x = None
+
+    def __init__(self, *args, **kwargs):
+        super().__init__()
+
+    def to(self, *args, **kwargs):
+        return self
+
+    def forward(self, *args, **kwargs):
+        # print("CustomizeEmbedsModel forward: args:", args)
+        # print("CustomizeEmbedsModel forward: kwargs:", kwargs)
+        input_ids = kwargs.get("input_ids", None)
+        # if self.x is None:
+        if True:
+            if input_ids is None:
+                batch_size = 1
+            else:
+                batch_size = input_ids.shape[0]
+
+            attention_mask = kwargs.get("attention_mask")
+            attention_mask_dim = attention_mask.shape[1]
+            self.x = torch.zeros(1, batch_size, 256, 2048, dtype=self.dtype)
+
+        if kwargs.get("output_hidden_states", False):
+            return {
+                "hidden_states": self.x.to("cuda"),
+                "input_ids": torch.zeros(1, 1),
+            }
+        return self.x
+
+
+class CustomizeTokenizer(dict):
+    added_tokens_encoder = []
+    input_ids = None
+    attention_mask = None
+    batch_size = 1
+
+    def __init__(self, *args, **kwargs):
+        self['added_tokens_encoder'] = self.added_tokens_encoder
+        self['input_ids'] = self.input_ids
+        self['attention_mask'] = self.attention_mask
+        self.batch_size = kwargs.get("batch_size", 1)
+
+    def tokenize(self, text):
+        return text
+
+    def __call__(self, *args, **kwargs):
+        # print("CustomizeTokenizer args:", args)
+        # print("CustomizeTokenizer kwargs:", kwargs)
+
+        value = args[0]
+        if isinstance(value, str):
+            batch_size = 1
+        else:
+            batch_size = value.shape[0]
+
+        # print(f"CustomizeTokenizer batch_size: {batch_size}")
+        # if self.input_ids is not None:
+        #     return self
+
+        self.input_ids = torch.zeros(batch_size, 256)
+        self.attention_mask = torch.zeros(batch_size, 256)
+        self['input_ids'] = self.input_ids
+        self['attention_mask'] = self.attention_mask
+
+        # print("CustomizeTokenizer input_ids:", self.input_ids.shape)
+        # print("CustomizeTokenizer attention_mask:", self.attention_mask.shape)
+
+        return self
+
+
+class CustomizeEmbeds():
+    def __init__(self):
+        super().__init__()
+        self.tokenizer = CustomizeTokenizer()
+        self.model = CustomizeEmbedsModel().to("cuda")
+        self.max_length = 256
+
+
+class CustomizeMT5Embedder(nn.Module):
+    device = torch.device("cuda")
+
+    def __init__(
+        self,
+        model_dir="t5-v1_1-xxl",
+        model_kwargs=None,
+        torch_dtype=None,
+        use_tokenizer_only=False,
+        max_length=128,
+        batch_size=1,
+    ):
+        super().__init__()
+        self.torch_dtype = torch_dtype or torch.bfloat16
+        self.max_length = max_length
+        self.tokenizer = CustomizeTokenizer(
+            batch_size=batch_size
+        )
+        self.model = CustomizeEmbedsModel().to("cuda")
+
+    def gradient_checkpointing_enable(self):
+        pass
+
+    def gradient_checkpointing_disable(self):
+        pass
+
+    def get_tokens_and_mask(self, texts):
+        text_tokens_and_mask = self.tokenizer(
+            texts,
+            max_length=self.max_length,
+            padding="max_length",
+            truncation=True,
+            return_attention_mask=True,
+            add_special_tokens=True,
+            return_tensors="pt",
+        )
+        tokens = text_tokens_and_mask["input_ids"][0]
+        mask = text_tokens_and_mask["attention_mask"][0]
+        return tokens, mask
+
+    def get_text_embeddings(self, texts, attention_mask=True, layer_index=-1):
+        text_tokens_and_mask = self.tokenizer(
+            texts,
+            max_length=self.max_length,
+            padding="max_length",
+            truncation=True,
+            return_attention_mask=True,
+            add_special_tokens=True,
+            return_tensors="pt",
+        )
+
+        outputs = self.model(
+            input_ids=text_tokens_and_mask["input_ids"],
+            attention_mask=(
+                text_tokens_and_mask["attention_mask"]
+                if attention_mask
+                else None
+            ),
+            output_hidden_states=True,
+        )
+        text_encoder_embs = outputs["hidden_states"][layer_index].detach()
+
+        return text_encoder_embs, text_tokens_and_mask["attention_mask"].to(self.device)
+
+    def get_input_ids(self, caption):
+        return self.tokenizer(
+            caption,
+            padding="max_length",
+            truncation=True,
+            max_length=self.max_length,
+            return_tensors="pt",
+        ).input_ids
+
+    def get_hidden_states(self, input_ids, layer_index=-1):
+        return self.get_text_embeddings(input_ids, layer_index=layer_index)
