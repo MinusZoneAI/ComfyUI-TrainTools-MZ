@@ -758,6 +758,7 @@ class Utils:
                         step, total_steps, pil_img_info)
                 except Exception as e:
                     print("progress_bar:", e)
+                    raise e
 
         return pb(steps)
 
