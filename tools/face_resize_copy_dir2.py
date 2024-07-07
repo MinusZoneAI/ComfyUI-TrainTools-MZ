@@ -100,7 +100,8 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("-i", "--input_dir", type=str, default="")
     parser.add_argument("-o", "--output_dir", type=str, default="")
-    parser.add_argument("-m", "--face_model_path", type=str, default="")
+    parser.add_argument("-m", "--face_model_path", type=str,
+                        default="D:\\数据集\\model.onnx")
     parser.add_argument("-r", "--resize", type=int, default=1024)
     parser.add_argument("-p", "--face_proportion", type=float, default=0.5) 
     parser.add_argument("-f", "--format", type=str, default="jpg")
@@ -111,7 +112,7 @@ def main():
     input_dir = args.input_dir
     output_dir = args.output_dir
     resize = args.resize
-    img_format = args.format
+    img_format = args.format 
     total = 0
     for root, dirs, files in os.walk(input_dir):
         # 排除隐藏文件夹
@@ -129,12 +130,15 @@ def main():
 
         # 排除隐藏文件夹
         dirs[:] = [d for d in dirs if not d.startswith('.')]
+ 
         for root, dirs, files in os.walk(input_dir):
             for file in files:
                 if not file.endswith(".png") and not file.endswith(".jpg"):
                     continue
-                file_path = os.path.join(root, file)
-                pbar.update(1)
+
+                pbar.update(1) 
+
+                file_path = os.path.join(root, file) 
 
                 with open(file_path, "rb") as f:
                     md5_str = Utils.Md5(f.read())

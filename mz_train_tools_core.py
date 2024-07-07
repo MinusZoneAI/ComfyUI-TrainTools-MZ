@@ -129,7 +129,7 @@ def MZ_ImageSelecter_call(args={}):
         if force_clear_only_images:
             images_files = Utils.listdir(train_images_dir)
             for file in images_files:
-                if file.lower().endswith(".png") or file.lower().endswith(".jpg"):
+                if file.lower().endswith(".png") or file.lower().endswith(".jpg") or file.lower().endswith(".webp"):
                     os.remove(os.path.join(train_images_dir, file))
         else:
             shutil.rmtree(train_images_dir)
