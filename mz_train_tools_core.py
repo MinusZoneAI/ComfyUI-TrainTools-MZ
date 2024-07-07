@@ -135,11 +135,14 @@ def MZ_ImageSelecter_call(args={}):
             shutil.rmtree(train_images_dir)
             os.makedirs(train_images_dir, exist_ok=True)
 
+    image_format = args.get("image_format")
+    file_extension = "." + image_format
     saved_images_path = []
     for i, pil_image in enumerate(pil_images):
         pil_image = Utils.resize_max(pil_image, resolution, resolution)
         width, height = pil_image.size
-        filename = hashlib.md5(pil_image.tobytes()).hexdigest() + ".png"
+        filename = hashlib.md5(
+            pil_image.tobytes()).hexdigest() + file_extension
         pil_image.save(os.path.join(train_images_dir, filename))
         saved_images_path.append(filename)
 

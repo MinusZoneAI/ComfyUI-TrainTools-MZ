@@ -64,6 +64,7 @@ class MZ_KohyaSSDatasetConfig:
                 "force_clear_only_images": (["enable", "disable"], {"default": "disable"}),
                 "same_caption_generate": (["enable", "disable"], {"default": "disable"}),
                 "same_caption": ("STRING", {"default": "", "dynamicPrompts": True, "multiline": True}),
+                "image_format": (["png", "jpg", "webp"], {"default": "webp"}),
             },
             "optional": {
                 "conditioning_images": ("IMAGE",),
@@ -632,7 +633,7 @@ class MZ_LoadImagesFromDirectoryPath:
         images = Utils.listdir(image_dir)
 
         images = [x for x in images if x.lower().endswith(
-            ".png") or x.lower().endswith(".jpg")]
+            ".png") or x.lower().endswith(".jpg") or file.lower().endswith(".webp")]
         images = [os.path.join(image_dir, x) for x in images]
 
         pil_images = []

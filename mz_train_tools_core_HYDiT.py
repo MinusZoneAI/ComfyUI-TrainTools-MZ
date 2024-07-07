@@ -126,7 +126,7 @@ def MZ_HYDiTDatasetConfig_call(args={}):
             if same_caption != "":
                 # 循环已经保存的图片
                 for i, filename in enumerate(saved_images_path):
-                    if filename.lower().endswith(".png") or filename.lower().endswith(".jpg"):
+                    if filename.lower().endswith(".png") or filename.lower().endswith(".jpg") or file.lower().endswith(".webp"):
                         base_filename = os.path.splitext(filename)[0]
                         caption_filename = base_filename + ".caption"
                         with open(os.path.join(train_images_dir, caption_filename), "w", encoding="utf-8") as f:
@@ -150,7 +150,7 @@ def MZ_HYDiTDatasetConfig_call(args={}):
         if force_clear_only_images:
             images_files = Utils.listdir(train_images_dir)
             for file in images_files:
-                if file.lower().endswith(".png") or file.lower().endswith(".jpg"):
+                if file.lower().endswith(".png") or file.lower().endswith(".jpg") or file.lower().endswith(".webp"):
                     os.remove(os.path.join(train_images_dir, file))
         else:
             shutil.rmtree(train_images_dir)
@@ -427,7 +427,7 @@ def MZ_HYDiTTrain_call(args={}):
         writer.writerow(["image_path", "text_zh"])
         for filename in full_filenames:
             print(f"处理文件: {filename}")
-            if filename.lower().endswith(".png") or filename.lower().endswith(".jpg"):
+            if filename.lower().endswith(".png") or filename.lower().endswith(".jpg") or file.lower().endswith(".webp"):
 
                 image_path = os.path.join(workspace_images_dir, filename)
                 pil_image = Image.open(image_path)
