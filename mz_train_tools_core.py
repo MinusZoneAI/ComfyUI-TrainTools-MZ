@@ -2,6 +2,7 @@
 
 import argparse
 import hashlib
+import io
 import os
 import shutil
 import sys
@@ -408,8 +409,7 @@ def run_hook_kohya_ss_run_file(kohya_ss_tool_dir, train_config, trainer_func, ot
 
     pb = Utils.progress_bar(train_config.get("max_train_steps"), taesd_type)
 
-    import traceback
-
+    import traceback 
     import comfy.model_management
 
     stop_server = None
@@ -440,21 +440,30 @@ def run_hook_kohya_ss_run_file(kohya_ss_tool_dir, train_config, trainer_func, ot
             print(f"stack: {traceback.format_exc()}")
         return is_running
     stop_server, port = Utils.Simple_Server(log_callback)
-    try:
-        subprocess.run(
-            [sys.executable, exec_pyfile, "--sys_path", kohya_ss_tool_dir,
-                "--train_config_json", train_config_str, "--train_func", trainer_func, "--master_port", str(port), "--other_config_json", other_config_str],
-            check=True,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.STDOUT,
-        )
-        stop_server()
-        is_running = False
-    except Exception as e:
-        stop_server()
-        is_running = False
-        raise Exception(f"训练失败!!! 具体报错信息请查看控制台...")
 
+    
+    process = subprocess.Popen(
+        [sys.executable, exec_pyfile, "--sys_path", kohya_ss_tool_dir,
+            "--train_config_json", train_config_str, "--train_func", trainer_func, "--master_port", str(port), "--other_config_json", other_config_str],
+        stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+    )
+    stdout, stderr = process.communicate()
+    stdout_str = ""
+    stderr_str = ""
+    if stdout is not None:
+        stdout_str = stdout.decode("utf-8")
+    if stderr is not None:
+        stderr_str = stderr.decode("utf-8")
+    retcode = process.poll()
+    if retcode:
+        raise Exception(f"""请查看以上具体信息,
+执行失败: 
+========================stdout========================
+{stdout_str}
+========================stderr========================
+{stderr_str}
+======================================================
+""")
 
 def MZ_KohyaSSTrain_call(args={}):
     args = args.copy()
