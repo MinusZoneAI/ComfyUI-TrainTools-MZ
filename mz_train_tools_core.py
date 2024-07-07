@@ -438,11 +438,13 @@ def run_hook_kohya_ss_run_file(kohya_ss_tool_dir, train_config, trainer_func, ot
             print(f"stack: {traceback.format_exc()}")
         return is_running
     stop_server, port = Utils.Simple_Server(log_callback)
+    class CusprocessError(Exception): pass
     try:
         subprocess.run(
             [sys.executable, exec_pyfile, "--sys_path", kohya_ss_tool_dir,
                 "--train_config_json", train_config_str, "--train_func", trainer_func, "--master_port", str(port), "--other_config_json", other_config_str],
-            check=True, 
+            check=True,
+            capture_output=True,
         )
         stop_server()
         is_running = False
@@ -450,18 +452,18 @@ def run_hook_kohya_ss_run_file(kohya_ss_tool_dir, train_config, trainer_func, ot
         stop_server()
         is_running = False
         stdout_str = ""
-        if e.stdout is not None:
-            stdout_str = e.stdout.decode("utf-8")
-        
+        if e.output is not None:
+            stdout_str = e.output.decode("utf-8")
+
         stderr_str = ""
         if e.stderr is not None:
             stderr_str = e.stderr.decode("utf-8")
 
-        raise Exception(f"""训练失败!!!具体报错信息请查看控制台...
+        raise CusprocessError(f"""训练失败!!!具体报错信息请查看控制台...
 =======================stdout=======================
 {stdout_str}
 =======================stderr=======================
-{stderr_str}
+{stderr_str} 
 ====================================================
                         """)
     except Exception as e:
