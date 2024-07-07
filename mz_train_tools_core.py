@@ -37,7 +37,9 @@ def MZ_KohyaSSCloneRepo_call(args={}):
     try:
         if not os.path.exists(kohya_ss_lora_dir) or not os.path.exists(os.path.join(kohya_ss_lora_dir, ".git")):
             subprocess.run(
-                ["git", "clone", "--depth", "1", git_url, kohya_ss_lora_dir], check=True)
+                ["git", "clone", "--depth", "1", git_url, kohya_ss_lora_dir], check=True,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.STDOUT,)
 
         # 切换远程分支 git remote set-branches origin 'main'
         branch = args.get("branch", "main")
@@ -443,6 +445,8 @@ def run_hook_kohya_ss_run_file(kohya_ss_tool_dir, train_config, trainer_func, ot
             [sys.executable, exec_pyfile, "--sys_path", kohya_ss_tool_dir,
                 "--train_config_json", train_config_str, "--train_func", trainer_func, "--master_port", str(port), "--other_config_json", other_config_str],
             check=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
         )
         stop_server()
         is_running = False
