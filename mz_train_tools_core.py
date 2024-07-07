@@ -452,6 +452,8 @@ def run_hook_kohya_ss_run_file(kohya_ss_tool_dir, train_config, trainer_func, ot
     stderr_str = ""
     if stdout is not None:
         stdout_str = stdout.decode("utf-8")
+        # 清除制表符
+        stdout_str = stdout_str.replace("\t", "    ") 
     if stderr is not None:
         stderr_str = stderr.decode("utf-8")
     retcode = process.poll()
