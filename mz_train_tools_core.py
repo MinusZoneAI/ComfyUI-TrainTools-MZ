@@ -392,7 +392,7 @@ def get_sample_images(workspace_dir, output_name):
     return result
 
 
-def run_hook_kohya_ss_run_file(workspace_dir, output_name, kohya_ss_tool_dir, trainer_func):
+def run_hook_kohya_ss_run_file(workspace_dir, output_name, kohya_ss_tool_dir, trainer_func, use_screen=False):
 
     train_config_file = os.path.join(workspace_dir, "config.json")
 
@@ -422,6 +422,8 @@ def run_hook_kohya_ss_run_file(workspace_dir, output_name, kohya_ss_tool_dir, tr
             comfy.model_management.throw_exception_if_processing_interrupted()
         except Exception as e:
             stop_server()
+            if process_instance is not None:
+                process_instance.stop()  # 强制关闭进程
             return is_running
 
         try:
@@ -442,6 +444,7 @@ def run_hook_kohya_ss_run_file(workspace_dir, output_name, kohya_ss_tool_dir, tr
             print(f"LOG: {log} e: {e} ")
             print(f"stack: {traceback.format_exc()}")
         return is_running
+
     stop_server, port = Utils.Simple_Server(log_callback)
     try:
         cmd_list = [sys.executable, exec_pyfile, "--sys_path", kohya_ss_tool_dir,
@@ -454,10 +457,16 @@ def run_hook_kohya_ss_run_file(workspace_dir, output_name, kohya_ss_tool_dir, tr
         with open(startup_script_path_bat, "w", encoding="utf-8") as f:
             f.write(" ".join(cmd_list))
 
-        subprocess.run(
-            cmd_list,
-            check=True,
-        )
+        from .mz_train_tools_utils import HSubprocess
+
+        screen_name = None
+        if use_screen:
+            screen_name = "mz_train_tools_core"
+            
+        process_instance = HSubprocess(
+            cmd_list, screen_name=screen_name)
+        process_instance.wait()
+
         stop_server()
         is_running = False
     except Exception as e:

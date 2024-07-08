@@ -1,4 +1,6 @@
 import os
+
+os.system("title hook_kohya_ss_run")
 import random
 import time
 
@@ -381,11 +383,15 @@ import requests
 
 
 def LOG(log):
-    # 发送http
-    resp = requests.request("post", f"http://127.0.0.1:{master_port}/log", data=json.dumps(log), headers={
-                            "Content-Type": "application/json"})
-    if resp.status_code != 200:
-        raise Exception(f"LOG failed: {resp.text}")
+    try:
+        # 发送http
+        resp = requests.request("post", f"http://127.0.0.1:{master_port}/log", data=json.dumps(log), headers={
+                                "Content-Type": "application/json"})
+        if resp.status_code != 200:
+            # raise Exception(f"LOG failed: {resp.text}")
+            print(f"LOG failed: {resp.text}")
+    except Exception as e:
+        print(f"LOG failed: {e}")
 
 
 if __name__ == "__main__":
