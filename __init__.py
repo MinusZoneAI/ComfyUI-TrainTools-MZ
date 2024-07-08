@@ -214,7 +214,8 @@ class MZ_KohyaSSAdvConfig:
     CATEGORY = CATEGORY_NAME + "/kohya_ss"
 
     def start(self, **kwargs):
-        return (kwargs,)
+        importlib.reload(mz_train_tools_core)
+        return mz_train_tools_core.MZ_KohyaSSAdvConfig_call(kwargs)
 
 
 NODE_CLASS_MAPPINGS["MZ_KohyaSSAdvConfig"] = MZ_KohyaSSAdvConfig
@@ -376,25 +377,25 @@ class MZ_KohyaSSLoraTrain:
     def start(self, **kwargs):
         importlib.reload(mz_train_tools_core)
 
-        train_config = {
-            "workspace_config": kwargs["workspace_config"],
-            "train_config_template": kwargs["train_config_template"],
-            "ckpt_name": kwargs["ckpt_name"],
-            "max_train_steps": kwargs["max_train_steps"],
-            "max_train_epochs": kwargs["max_train_epochs"],
-            "save_every_n_epochs": kwargs["save_every_n_epochs"],
-            "learning_rate": kwargs["learning_rate"],
-        }
+        # train_config = {
+        #     "workspace_config": kwargs["workspace_config"],
+        #     "train_config_template": kwargs["train_config_template"],
+        #     "ckpt_name": kwargs["ckpt_name"],
+        #     "max_train_steps": kwargs["max_train_steps"],
+        #     "max_train_epochs": kwargs["max_train_epochs"],
+        #     "save_every_n_epochs": kwargs["save_every_n_epochs"],
+        #     "learning_rate": kwargs["learning_rate"],
+        # }
 
-        train_config["train_config_template_dir"] = self.train_config_template_dir
+        # train_config["train_config_template_dir"] = self.train_config_template_dir
 
-        advanced_config = kwargs.get("advanced_config", None)
+        # advanced_config = kwargs.get("advanced_config", None)
 
-        if advanced_config is not None:
-            for k, v in advanced_config.items():
-                train_config[k] = v
+        # if advanced_config is not None:
+        #     for k, v in advanced_config.items():
+        #         train_config[k] = v
 
-        kwargs["train_config"] = train_config
+        # kwargs["train_config"] = train_config
         return mz_train_tools_core.MZ_KohyaSSTrain_call(kwargs)
 
 
@@ -574,7 +575,7 @@ class MZ_KohyaSS_KohakuBlueleaf_HYHiDSimpleT2I:
                 "text_encoder_path": (["auto"] + folders, {"default": "auto"}),
                 "tokenizer_path": (["auto"] + folders, {"default": "auto"}),
                 "t5_encoder_path": (["none", "auto"] + folders, {"default": "none"}),
-                "lora_path": (["none"] + comfyui_full_loras, {"default": "none"}), 
+                "lora_path": (["none"] + comfyui_full_loras, {"default": "none"}),
                 "seed": ("INT", {"default": 0}),
                 "steps": ("INT", {"default": 20}),
                 "cfg": ("FLOAT", {"default": 5.0, "min": 0.0, "max": 100.0, "step": 0.1, "round": 0.01}),
@@ -605,7 +606,8 @@ class MZ_KohyaSS_KohakuBlueleaf_HYHiDSimpleT2I:
 
 
 NODE_CLASS_MAPPINGS["MZ_KohyaSS_KohakuBlueleaf_HYHiDSimpleT2I"] = MZ_KohyaSS_KohakuBlueleaf_HYHiDSimpleT2I
-NODE_DISPLAY_NAME_MAPPINGS["MZ_KohyaSS_KohakuBlueleaf_HYHiDSimpleT2I"] = f"{AUTHOR_NAME} - KohyaSS_KohakuBlueleaf_HYHiDSimpleT2I"
+NODE_DISPLAY_NAME_MAPPINGS[
+    "MZ_KohyaSS_KohakuBlueleaf_HYHiDSimpleT2I"] = f"{AUTHOR_NAME} - KohyaSS_KohakuBlueleaf_HYHiDSimpleT2I"
 
 
 class MZ_LoadImagesFromDirectoryPath:
@@ -945,7 +947,7 @@ class MZ_TrainToolsDebug:
 
     def start(self, **kwargs):
 
-        from pprint import pprint, pp
+        from pprint import pprint, pformat
         object = kwargs["object"]
         indent = kwargs["indent"]
         depth = kwargs["depth"]
@@ -954,11 +956,10 @@ class MZ_TrainToolsDebug:
         sort_keys = kwargs["sort_keys"] == "enable"
         underscore_numbers = kwargs["underscore_numbers"] == "enable"
 
-        debug = pp(object, stream=None, indent=indent, depth=depth, width=width,
-                   compact=compact, sort_dicts=sort_keys, underscore_numbers=underscore_numbers)
-
+        debug = pformat(object, indent=indent, depth=depth, width=width,
+                        compact=compact, sort_dicts=sort_keys, underscore_numbers=underscore_numbers)
         return (debug,)
 
 
-# NODE_CLASS_MAPPINGS["MZ_TrainToolsDebug"] = MZ_TrainToolsDebug
-# NODE_DISPLAY_NAME_MAPPINGS["MZ_TrainToolsDebug"] = f"{AUTHOR_NAME} - TrainToolsDebug"
+NODE_CLASS_MAPPINGS["MZ_TrainToolsDebug"] = MZ_TrainToolsDebug
+NODE_DISPLAY_NAME_MAPPINGS["MZ_TrainToolsDebug"] = f"{AUTHOR_NAME} - TrainToolsDebug"

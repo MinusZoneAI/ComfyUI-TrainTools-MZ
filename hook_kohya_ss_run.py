@@ -1,5 +1,6 @@
 import os
 import random
+import time
 
 import torch
 import logging
@@ -38,7 +39,7 @@ other_config = {}
 original_save_model = None
 
 
-train_config_json = "{}"
+train_config = {}
 
 sample_images_pipe_class = None
 
@@ -48,7 +49,6 @@ def utils_sample_images(*args, **kwargs):
 
 
 def get_datasets():
-    train_config = json.loads(train_config_json)
     import library.config_util
     user_config = library.config_util.load_user_config(
         train_config.get("dataset_config", None))
@@ -78,7 +78,7 @@ def sample_images(self, *args, **kwargs):
     if epoch is not None and cmd_args.save_every_n_epochs is not None and epoch % cmd_args.save_every_n_epochs == 0:
 
         datasets = get_datasets()
-        resolution = datasets.get("resolution", (512, 512)) 
+        resolution = datasets.get("resolution", (512, 512))
         if isinstance(resolution, int):
             resolution = (resolution, resolution)
         height, width = resolution
@@ -101,7 +101,7 @@ def sample_images(self, *args, **kwargs):
                     "height": height,
                     "width": width,
                 }
-                # 
+                #
                 prompt_dict_list.append(prompt_dict)
         else:
             for i, prompt_dict in enumerate(prompt_dict_list):
@@ -149,7 +149,6 @@ def run_lora_sd1_5():
     sample_images_pipe_class = library.train_util.StableDiffusionLongPromptWeightingPipeline
 
     trainer = train_network.NetworkTrainer()
-    train_config = json.loads(train_config_json)
     train_args = config2args(train_network.setup_parser(), train_config)
 
     LOG({
@@ -171,7 +170,6 @@ def run_lora_sdxl():
     sample_images_pipe_class = library.sdxl_train_util.SdxlStableDiffusionLongPromptWeightingPipeline
 
     trainer = sdxl_train_network.SdxlNetworkTrainer()
-    train_config = json.loads(train_config_json)
     train_args = config2args(sdxl_train_network.setup_parser(), train_config)
 
     LOG({
@@ -215,7 +213,6 @@ def run_controlnet_sd1_5():
     global sample_images_pipe_class
     sample_images_pipe_class = library.train_util.StableDiffusionLongPromptWeightingPipeline
 
-    train_config = json.loads(train_config_json)
     train_args = config2args(train_controlnet.setup_parser(), train_config)
 
     LOG({
@@ -362,7 +359,6 @@ def run_lora_hunyuan1_2():
     library.hunyuan_utils.load_model = hunyuan_load_model
 
     trainer = hunyuan_train_network.HunYuanNetworkTrainer()
-    train_config = json.loads(train_config_json)
     train_args = config2args(
         hunyuan_train_network.setup_parser(), train_config)
     print(f"train_args = {train_args}")
@@ -395,14 +391,10 @@ def LOG(log):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--sys_path", type=str, default="")
-    parser.add_argument("--train_config_json", type=str, default="")
+    parser.add_argument("--config", type=str, default="")
     parser.add_argument("--train_func", type=str, default="")
     parser.add_argument("--master_port", type=int, default=0)
-    parser.add_argument("--other_config_json", type=str, default="{}")
     args = parser.parse_args()
-
-    other_config_json = args.other_config_json
-    other_config = json.loads(other_config_json)
 
     master_port = args.master_port
 
@@ -412,10 +404,34 @@ if __name__ == "__main__":
     if sys_path != "":
         sys.path.append(sys_path)
 
-    train_config_json = args.train_config_json
+    config_file = args.config
+    if config_file == "":
+        raise Exception("train_config is empty")
+
+    global_config = {}
+    with open(config_file, "r") as f:
+        _global_config = f.read()
+        global_config = json.loads(_global_config)
+
+    train_config = global_config.get("train_config")
+    print(f"""=======================train_config=======================
+{json.dumps(train_config, indent=4, ensure_ascii=False)}
+          """)
+
+    other_config = global_config.get("other_config", {})
+    print(f"""=======================other_config=======================
+{json.dumps(other_config, indent=4, ensure_ascii=False)}
+          """)
 
     train_func = args.train_func
     if train_func == "":
         raise Exception("train_func is empty")
+
+    print(f"train_func = {train_func}")
+
+    time.sleep(2)
+    LOG({
+        "type": "Read configuration completed!",
+    })
 
     func_map[train_func]()
