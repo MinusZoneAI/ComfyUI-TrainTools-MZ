@@ -758,6 +758,7 @@ class Utils:
                         step, total_steps, pil_img_info)
                 except Exception as e:
                     print("progress_bar:", e)
+                    raise e
 
         return pb(steps)
 
@@ -1134,3 +1135,85 @@ class CustomizeMT5Embedder(nn.Module):
 
     def get_hidden_states(self, input_ids, layer_index=-1):
         return self.get_text_embeddings(input_ids, layer_index=layer_index)
+
+
+class HSubprocess:
+    process_instance = None
+    process_instance_pid = None
+    screen_name = None
+    _mswindows = False
+
+    def __init__(self, args, screen_name=None):
+        self._mswindows = (sys.platform == "win32")
+        if self._mswindows:
+            self.args = ["start", "/w"]
+            self.args.extend(args)
+            return
+
+        self.screen_name = screen_name
+        if screen_name is not None:
+            try:
+                subprocess.check_call(["screen", "-v"])
+            except Exception as e:
+                raise Exception("Please install screen first.")
+
+            screen_cmd = ["screen", "-R", screen_name, "-m", ]
+            screen_cmd.extend(args)
+
+            self.args = screen_cmd
+        else:
+            self.args = args
+
+    def stop(self):
+        if self._mswindows:
+            if self.process_instance_pid is not None:
+                os.system(
+                    f'taskkill /F /FI "WINDOWTITLE eq hook_kohya_ss_run" /T')
+        if self.process_instance is not None:
+            if self.screen_name is not None:
+                subprocess.run(
+                    ["screen", "-d", self.screen_name])
+
+            self.process_instance.kill()
+            self.process_instance = None
+
+            try:
+                try:
+                    import psutil
+                except ImportError:
+                    subprocess.check_call(
+                        [sys.executable, "-m", "pip", "install", "psutil"])
+                    import psutil
+                psutil.Process(self.process_instance_pid).terminate()
+            except Exception as e:
+                print(e)
+
+            self.process_instance_pid = None
+
+    def wait(self):
+        with subprocess.Popen(
+            self.args,
+            stdin=subprocess.PIPE,
+            shell=True,
+        ) as process:
+            self.process_instance = process
+            self.process_instance_pid = process.pid
+            print(f"Subprocess PID: {self.process_instance_pid}")
+            try:
+                stdout, stderr = process.communicate()
+            except subprocess.TimeoutExpired as exc:
+                process.kill()
+                if self._mswindows:
+                    exc.stdout, exc.stderr = process.communicate()
+                else:
+                    process.wait()
+                raise
+            except Exception as e:
+                process.wait()
+                raise
+            retcode = process.poll()
+            if retcode != 0:
+                raise subprocess.CalledProcessError(retcode, process.args)
+
+        self.process_instance = None
+        self.process_instance_pid = None

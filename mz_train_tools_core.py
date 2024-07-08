@@ -129,17 +129,20 @@ def MZ_ImageSelecter_call(args={}):
         if force_clear_only_images:
             images_files = Utils.listdir(train_images_dir)
             for file in images_files:
-                if file.lower().endswith(".png") or file.lower().endswith(".jpg"):
+                if file.lower().endswith(".png") or file.lower().endswith(".jpg") or file.lower().endswith(".webp"):
                     os.remove(os.path.join(train_images_dir, file))
         else:
             shutil.rmtree(train_images_dir)
             os.makedirs(train_images_dir, exist_ok=True)
 
+    image_format = args.get("image_format")
+    file_extension = "." + image_format
     saved_images_path = []
     for i, pil_image in enumerate(pil_images):
         pil_image = Utils.resize_max(pil_image, resolution, resolution)
         width, height = pil_image.size
-        filename = hashlib.md5(pil_image.tobytes()).hexdigest() + ".png"
+        filename = hashlib.md5(
+            pil_image.tobytes()).hexdigest() + file_extension
         pil_image.save(os.path.join(train_images_dir, filename))
         saved_images_path.append(filename)
 
@@ -180,7 +183,7 @@ def MZ_ImageSelecter_call(args={}):
 
 
 def MZ_KohyaSSUseConfig_call(args={}):
-    # raise Exception(f"MZ_KohyaSSUseConfig_call: {args}")
+    args = args.copy()
     workspace_config = args.get("workspace_config", {})
     workspace_name = workspace_config.get("workspace_name", None)
 
@@ -246,6 +249,8 @@ def MZ_KohyaSSUseConfig_call(args={}):
             advanced_config = args.get("advanced_config", {}).copy()
 
         for k in advanced_config:
+            print(f"{k}= {advanced_config[k]}")
+
             if type(advanced_config[k]) == str and advanced_config[k] == "":
                 if k in config["train_config"]:
                     del config["train_config"][k]
@@ -267,6 +272,12 @@ def MZ_KohyaSSUseConfig_call(args={}):
         json.dump(config, f, indent=4, ensure_ascii=False)
 
     # raise Exception(f"MZ_KohyaSSUseConfig_call: {args}")
+    return (
+        args,
+    )
+
+
+def MZ_KohyaSSAdvConfig_call(args={}):
     return (
         args,
     )
@@ -351,10 +362,9 @@ def generate_toml_config(output_path, enable_bucket=True, resolution=512, batch_
 from PIL import Image
 
 
-def get_sample_images(train_config):
-    output_name = train_config.get("output_name")
+def get_sample_images(workspace_dir, output_name):
     sample_images_dir = os.path.join(
-        os.path.dirname(train_config.get("dataset_config")), "sample_images"
+        workspace_dir, "sample_images"
     )
     pil_images = []
     pre_render_texts_x = []
@@ -382,15 +392,13 @@ def get_sample_images(train_config):
     return result
 
 
-def run_hook_kohya_ss_run_file(kohya_ss_tool_dir, train_config, trainer_func, other_config={}):
+def run_hook_kohya_ss_run_file(workspace_dir, output_name, kohya_ss_tool_dir, trainer_func, use_screen=False):
 
-    other_config_str = json.dumps(other_config)
+    train_config_file = os.path.join(workspace_dir, "config.json")
 
     exec_pyfile = os.path.join(os.path.dirname(
         __file__), "hook_kohya_ss_run.py",)
-    train_config_str = json.dumps(train_config)
-    max_train_steps = train_config.get("max_train_steps")
-    max_train_epochs = train_config.get("max_train_epochs")
+
     is_running = True
 
     taesd_type = "sd1_5"
@@ -401,7 +409,7 @@ def run_hook_kohya_ss_run_file(kohya_ss_tool_dir, train_config, trainer_func, ot
     if trainer_func.find("hunyuan1_1") != -1:
         taesd_type = "sdxl"
 
-    pb = Utils.progress_bar(train_config.get("max_train_steps"), taesd_type)
+    pb = Utils.progress_bar(0, taesd_type)
 
     import traceback
 
@@ -414,13 +422,15 @@ def run_hook_kohya_ss_run_file(kohya_ss_tool_dir, train_config, trainer_func, ot
             comfy.model_management.throw_exception_if_processing_interrupted()
         except Exception as e:
             stop_server()
+            if process_instance is not None:
+                process_instance.stop()  # 强制关闭进程
             return is_running
 
         try:
             resp = log
             if resp.get("type") == "sample_images":
                 global_step = resp.get("global_step")
-                xy_img = get_sample_images(train_config)
+                xy_img = get_sample_images(workspace_dir, output_name)
 
                 max_side = max(xy_img.width, xy_img.height)
                 # print(f"global_step: {global_step}, max_train_steps: {max_train_steps}")
@@ -434,13 +444,29 @@ def run_hook_kohya_ss_run_file(kohya_ss_tool_dir, train_config, trainer_func, ot
             print(f"LOG: {log} e: {e} ")
             print(f"stack: {traceback.format_exc()}")
         return is_running
+
     stop_server, port = Utils.Simple_Server(log_callback)
     try:
-        subprocess.run(
-            [sys.executable, exec_pyfile, "--sys_path", kohya_ss_tool_dir,
-                "--train_config_json", train_config_str, "--train_func", trainer_func, "--master_port", str(port), "--other_config_json", other_config_str],
-            check=True,
-        )
+        cmd_list = [sys.executable, exec_pyfile, "--sys_path", kohya_ss_tool_dir,
+                    "--config", train_config_file, "--train_func", trainer_func, "--master_port", str(port)]
+        startup_script_path_sh = os.path.join(workspace_dir, "start_train.sh")
+        startup_script_path_bat = os.path.join(
+            workspace_dir, "start_train.bat")
+        with open(startup_script_path_sh, "w", encoding="utf-8") as f:
+            f.write(" ".join(cmd_list))
+        with open(startup_script_path_bat, "w", encoding="utf-8") as f:
+            f.write(" ".join(cmd_list))
+
+        from .mz_train_tools_utils import HSubprocess
+
+        screen_name = None
+        if use_screen:
+            screen_name = "mz_train_tools_core"
+            
+        process_instance = HSubprocess(
+            cmd_list, screen_name=screen_name)
+        process_instance.wait()
+
         stop_server()
         is_running = False
     except Exception as e:
@@ -449,14 +475,15 @@ def run_hook_kohya_ss_run_file(kohya_ss_tool_dir, train_config, trainer_func, ot
         raise Exception(f"训练失败!!! 具体报错信息请查看控制台...")
 
 
-def MZ_KohyaSSTrain_call(args={}):
+def generate_kohya_ss_config(args):
     args = args.copy()
-    workspace_config = args.get("workspace_config", {})
-
-    train_config = args.get("train_config", {})
-    MZ_KohyaSSUseConfig_call(train_config)
+    workspace_config = args.get("workspace_config", {}).copy()
+    advanced_config = args.get("advanced_config", {}).copy()
+    train_config = args.get("train_config", {}).copy()
 
     workspace_name = workspace_config.get("workspace_name", None)
+    if workspace_name is None or workspace_name == "":
+        raise Exception("工作区名称不能为空(workspace_name is required)")
     workspace_dir = os.path.join(
         folder_paths.output_directory, "mz_train_workspaces", workspace_name)
 
@@ -465,15 +492,87 @@ def MZ_KohyaSSTrain_call(args={}):
 
     workspace_config_file = os.path.join(workspace_dir, "config.json")
 
-    if not os.path.exists(workspace_config_file):
-        raise Exception(f"配置文件不存在: {workspace_config_file}")
+    train_config_template = args.get("train_config_template", None)
+    train_config_template_dir = os.path.join(
+        os.path.dirname(__file__), "configs", "kohya_ss_lora")
+    train_config_template_file = os.path.join(
+        train_config_template_dir, train_config_template + ".json")
 
+    # raise Exception(f"args: {json.dumps(args, indent=4, ensure_ascii=False)}")
     config = None
-    with open(workspace_config_file, "r", encoding="utf-8") as f:
+    with open(train_config_template_file, "r", encoding="utf-8") as f:
         config = json.load(f)
+        config["metadata"]["train_type"] = train_config_template
+        ckpt_name = args.get("ckpt_name", "")
+        if ckpt_name != "" and ckpt_name is not None:
+            ckpt_path = folder_paths.get_full_path("checkpoints", ckpt_name)
+            config["train_config"]["pretrained_model_name_or_path"] = ckpt_path
+
+        # output_dir
+        output_dir = os.path.join(workspace_dir, "output")
+        config["train_config"]["output_dir"] = output_dir
+
+        datetime = time.strftime("%Y%m%d_%H%M%S", time.localtime())
+        # output_name
+        config["train_config"]["output_name"] = f"{workspace_name}_{train_config_template}_{datetime}"
+
+        dataset_config_path = os.path.join(
+            workspace_dir, "dataset.toml")
+        config["train_config"]["dataset_config"] = dataset_config_path
+
+        config["train_config"]["max_train_steps"] = str(
+            args.get("max_train_steps"))
+
+        config["train_config"]["max_train_epochs"] = str(
+            args.get("max_train_epochs"))
+        if config["train_config"]["max_train_epochs"] == "0":
+            config["train_config"]["max_train_epochs"] = False
+
+        config["train_config"]["save_every_n_epochs"] = str(
+            args.get("save_every_n_epochs"))
+
+        config["train_config"]["learning_rate"] = str(
+            args.get("learning_rate"))
+
+        for k in advanced_config:
+            print(f"{k}= {advanced_config[k]}")
+
+            if type(advanced_config[k]) == str and advanced_config[k] == "":
+                if k in config["train_config"]:
+                    del config["train_config"][k]
+                continue
+            elif advanced_config[k] == "enable":
+                advanced_config[k] = True
+            elif advanced_config[k] == "disable":
+                advanced_config[k] = False
+            else:
+                advanced_config[k] = str(advanced_config[k])
+            config["train_config"][k] = advanced_config[k]
+
+        # raise Exception(f"args: {json.dumps(config, indent=4)}")
 
     if config is None:
         raise Exception(f"读取配置文件失败: {workspace_config_file}")
+
+    # raise Exception(f"MZ_KohyaSSUseConfig_call: {args}")
+    return config
+
+
+def MZ_KohyaSSTrain_call(args={}):
+    args = args.copy()
+    workspace_config = args.get("workspace_config").copy()
+    base_lora = args.get("base_lora", "empty")
+    sample_generate = args.get("sample_generate", "enable")
+    sample_prompt = args.get("sample_prompt", "")
+
+    workspace_name = workspace_config.get("workspace_name")
+    workspace_dir = os.path.join(
+        folder_paths.output_directory, "mz_train_workspaces", workspace_name)
+
+    if not os.path.exists(workspace_dir):
+        raise Exception(f"工作区不存在: {workspace_dir}")
+
+    config = generate_kohya_ss_config(args)
 
     branch_local_name = workspace_config.get(
         "branch_local_name", "kohya_ss_lora")
@@ -484,7 +583,6 @@ def MZ_KohyaSSTrain_call(args={}):
         sys.path.append(kohya_ss_tool_dir)
     check_install()
 
-    base_lora = args.get("base_lora", "empty")
     if base_lora == "empty":
         pass
     elif base_lora == "latest":
@@ -506,17 +604,16 @@ def MZ_KohyaSSTrain_call(args={}):
     else:
         pass
 
-    train_config = config.get("train_config")
     if base_lora != "empty" and os.path.exists(base_lora):
-        train_config["network_weights"] = base_lora
-        train_config["dim_from_weights"] = True
+        config["train_config"]["network_weights"] = base_lora
+        config["train_config"]["dim_from_weights"] = True
 
-        if "network_dim" in train_config:
-            del train_config["network_dim"]
-        if "network_alpha" in train_config:
-            del train_config["network_alpha"]
-        if "network_dropout" in train_config:
-            del train_config["network_dropout"]
+        if "network_dim" in config["train_config"]:
+            del config["train_config"]["network_dim"]
+        if "network_alpha" in config["train_config"]:
+            del config["train_config"]["network_alpha"]
+        if "network_dropout" in config["train_config"]:
+            del config["train_config"]["network_dropout"]
 
     base_controlnet = args.get("base_controlnet", "empty")
     if base_controlnet == "empty":
@@ -542,25 +639,32 @@ def MZ_KohyaSSTrain_call(args={}):
         pass
 
     if base_controlnet != "empty" and os.path.exists(base_controlnet):
-        train_config["controlnet_model_name_or_path"] = base_controlnet
+        config["train_config"]["controlnet_model_name_or_path"] = base_controlnet
 
     train_type = config.get("metadata").get("train_type")
 
-    sample_generate = args.get("sample_generate", "enable")
-    sample_prompt = args.get("sample_prompt", "")
     if sample_generate == "enable":
-        other_config = {
+        config["other_config"] = {
             "sample_prompt": sample_prompt,
         }
     else:
-        other_config = {}
+        config["other_config"] = {}
+
+    workspace_config_file = os.path.join(workspace_dir, "config.json")
+    with open(workspace_config_file, "w", encoding="utf-8") as f:
+        json.dump(config, f, indent=4, ensure_ascii=False)
+
+    # raise Exception(
+    #     f"config: {json.dumps(config, indent=4, ensure_ascii=False)}")
+
+    output_name = config["train_config"].get("output_name")
 
     if train_type == "lora_sd1_5":
         run_hook_kohya_ss_run_file(
-            kohya_ss_tool_dir, train_config, "run_lora_sd1_5", other_config)
+            workspace_dir, output_name, kohya_ss_tool_dir, "run_lora_sd1_5")
     elif train_type == "lora_sdxl":
         run_hook_kohya_ss_run_file(
-            kohya_ss_tool_dir, train_config, "run_lora_sdxl", other_config)
+            workspace_dir, output_name, kohya_ss_tool_dir, "run_lora_sdxl")
     elif train_type == "controlnet_sd1_5":
 
         conditioning_images_dir = os.path.join(
@@ -569,11 +673,13 @@ def MZ_KohyaSSTrain_call(args={}):
         if os.path.exists(conditioning_images_dir):
             conditioning_images_onec = Utils.listdir(
                 conditioning_images_dir)[0]
-            other_config["controlnet_image"] = os.path.join(
+            config["other_config"]["controlnet_image"] = os.path.join(
                 conditioning_images_dir, conditioning_images_onec)
+            with open(workspace_config_file, "w", encoding="utf-8") as f:
+                json.dump(config, f, indent=4, ensure_ascii=False)
 
         run_hook_kohya_ss_run_file(
-            kohya_ss_tool_dir, train_config, "run_controlnet_sd1_5", other_config)
+            workspace_dir, output_name, kohya_ss_tool_dir, "run_controlnet_sd1_5")
     elif train_type == "lora_hunyuan1_2" or train_type == "lora_hunyuan1_1":
         hunyuan_models_config = args.get(
             "hunyuan_models_config", {})
@@ -581,11 +687,14 @@ def MZ_KohyaSSTrain_call(args={}):
 
         hunyuan_models_config["version"] = config.get(
             "metadata").get("version")
-        other_config["hunyuan_models_config"] = check_model_auto_download(
+        config["other_config"]["hunyuan_models_config"] = check_model_auto_download(
             hunyuan_models_config)
 
+        with open(workspace_config_file, "w", encoding="utf-8") as f:
+            json.dump(config, f, indent=4, ensure_ascii=False)
+
         run_hook_kohya_ss_run_file(
-            kohya_ss_tool_dir, train_config, "run_lora_hunyuan1_2", other_config)
+            workspace_dir, output_name, kohya_ss_tool_dir, "run_lora_hunyuan1_2")
     else:
         raise Exception(
             f"暂时不支持的训练类型: {train_type}")
