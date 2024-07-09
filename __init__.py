@@ -66,6 +66,7 @@ class MZ_KohyaSSDatasetConfig:
                 "same_caption_generate": (["enable", "disable"], {"default": "disable"}),
                 "same_caption": ("STRING", {"default": "", "dynamicPrompts": True, "multiline": True}),
                 "image_format": (["png", "jpg", "webp"], {"default": "webp"}),
+                "dataset_config_extension": ([".toml", ".json"], {"default": ".json"}),
             },
             "optional": {
                 "conditioning_images": ("IMAGE",),
@@ -346,23 +347,23 @@ class MZ_KohyaSSLoraTrain:
 
         train_config_templates = Utils.listdir(s.train_config_template_dir)
 
-
         priority = [
-            "lora",  
+            "lora",
             "1_2"
             "1_1"
         ]
         # 去掉json后缀
         train_config_templates = [os.path.splitext(x)[0]
                                   for x in train_config_templates]
-        
+
         def priority_sort(x):
             for p in priority:
                 if x.find(p) != -1:
                     return priority.index(p)
             return 999
-        
-        train_config_templates = sorted(train_config_templates, key=priority_sort)
+
+        train_config_templates = sorted(
+            train_config_templates, key=priority_sort)
         return {
             "required": {
                 "workspace_config": ("MZ_TT_SS_WorkspaceConfig",),

@@ -167,8 +167,15 @@ def MZ_ImageSelecter_call(args={}):
 
     caption_extension = args.get("caption_extension", ".caption")
 
+    if os.path.exists(os.path.join(workspace_dir, "dataset.json")):
+        os.remove(os.path.join(workspace_dir, "dataset.json"))
+
+    if os.path.exists(os.path.join(workspace_dir, "dataset.toml")):
+        os.remove(os.path.join(workspace_dir, "dataset.toml"))
+
+    dataset_config_extension = args.get("dataset_config_extension")
     generate_dataset_config(
-        os.path.join(workspace_dir, "dataset.json"),
+        os.path.join(workspace_dir, "dataset" + dataset_config_extension),
         enable_bucket=args.get("enable_bucket") == "enable",
         resolution=args.get("resolution"),
         batch_size=args.get("batch_size"),
@@ -348,7 +355,7 @@ def generate_dataset_config(output_path, enable_bucket=True, resolution=512, bat
                 'batch_size': batch_size,
                 'subsets': [
                     {
-                        'image_dir': image_dir, 
+                        'image_dir': image_dir,
                         'caption_extension': caption_extension,
                         'num_repeats': num_repeats,
                     },
