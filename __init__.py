@@ -59,12 +59,14 @@ class MZ_KohyaSSDatasetConfig:
                 "enable_bucket": (["enable", "disable"], {"default": "enable"}),
                 "resolution": ("INT", {"default": 1024}),
                 "num_repeats": ("INT", {"default": 1}),
+                "caption_extension": ([".caption", ".txt"], {"default": ".caption"}),
                 "batch_size": ("INT", {"default": 1}),
                 "force_clear": (["enable", "disable"], {"default": "disable"}),
                 "force_clear_only_images": (["enable", "disable"], {"default": "disable"}),
                 "same_caption_generate": (["enable", "disable"], {"default": "disable"}),
                 "same_caption": ("STRING", {"default": "", "dynamicPrompts": True, "multiline": True}),
                 "image_format": (["png", "jpg", "webp"], {"default": "webp"}),
+                "dataset_config_extension": ([".toml", ".json"], {"default": ".json"}),
             },
             "optional": {
                 "conditioning_images": ("IMAGE",),
@@ -345,9 +347,23 @@ class MZ_KohyaSSLoraTrain:
 
         train_config_templates = Utils.listdir(s.train_config_template_dir)
 
+        priority = [
+            "lora",
+            "1_2"
+            "1_1"
+        ]
         # 去掉json后缀
         train_config_templates = [os.path.splitext(x)[0]
                                   for x in train_config_templates]
+
+        def priority_sort(x):
+            for p in priority:
+                if x.find(p) != -1:
+                    return priority.index(p)
+            return 999
+
+        train_config_templates = sorted(
+            train_config_templates, key=priority_sort)
         return {
             "required": {
                 "workspace_config": ("MZ_TT_SS_WorkspaceConfig",),
@@ -935,6 +951,7 @@ class MZ_TrainToolsDebug:
                 "compact": (["enable", "disable"], {"default": "enable"}),
                 "sort_keys": (["enable", "disable"], {"default": "enable"}),
                 "underscore_numbers": (["enable", "disable"], {"default": "enable"}),
+                "index": ("STRING", {"default": ""}),
             },
         }
 
@@ -946,19 +963,8 @@ class MZ_TrainToolsDebug:
     CATEGORY = CATEGORY_NAME
 
     def start(self, **kwargs):
-
-        from pprint import pprint, pformat
-        object = kwargs["object"]
-        indent = kwargs["indent"]
-        depth = kwargs["depth"]
-        width = kwargs["width"]
-        compact = kwargs["compact"] == "enable"
-        sort_keys = kwargs["sort_keys"] == "enable"
-        underscore_numbers = kwargs["underscore_numbers"] == "enable"
-
-        debug = pformat(object, indent=indent, depth=depth, width=width,
-                        compact=compact, sort_dicts=sort_keys, underscore_numbers=underscore_numbers)
-        return (debug,)
+        importlib.reload(mz_train_tools_core)
+        return mz_train_tools_core.MZ_TrainToolsDebug_call(kwargs.copy())
 
 
 NODE_CLASS_MAPPINGS["MZ_TrainToolsDebug"] = MZ_TrainToolsDebug
