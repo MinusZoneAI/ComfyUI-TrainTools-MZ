@@ -162,19 +162,19 @@ def MZ_ImageSelecter_call(args={}):
                 with open(os.path.join(train_images_dir, caption_filename), "w", encoding="utf-8") as f:
                     f.write(same_caption)
 
-    dataset_config_path = os.path.join(workspace_dir, "dataset.toml")
-
     if conditioning_images is None:
         conditioning_images_dir = None
 
-    generate_toml_config(
-        dataset_config_path,
+    caption_extension = args.get("caption_extension", ".caption")
+
+    generate_dataset_config(
+        os.path.join(workspace_dir, "dataset.json"),
         enable_bucket=args.get("enable_bucket") == "enable",
         resolution=args.get("resolution"),
         batch_size=args.get("batch_size"),
         image_dir=train_images_dir,
         conditioning_data_dir=conditioning_images_dir,
-        caption_extension=".caption",
+        caption_extension=caption_extension,
         num_repeats=args.get("num_repeats"),
     )
     return (
@@ -227,7 +227,11 @@ def MZ_KohyaSSUseConfig_call(args={}):
         config["train_config"]["output_name"] = f"{workspace_name}_{train_config_template}_{datetime}"
 
         dataset_config_path = os.path.join(
-            workspace_dir, "dataset.toml")
+            workspace_dir, "dataset.json")
+        if not os.path.exists(dataset_config_path):
+            dataset_config_path = os.path.join(
+                workspace_dir, "dataset.toml")
+
         config["train_config"]["dataset_config"] = dataset_config_path
 
         config["train_config"]["max_train_steps"] = str(
@@ -332,9 +336,8 @@ def check_install():
 import logging
 
 
-def generate_toml_config(output_path, enable_bucket=True, resolution=512, batch_size=1, image_dir=None, conditioning_data_dir=None, caption_extension=".caption", num_repeats=10, ):
-    check_install()
-    import toml
+def generate_dataset_config(output_path, enable_bucket=True, resolution=512, batch_size=1, image_dir=None, conditioning_data_dir=None, caption_extension=".caption", num_repeats=10, ):
+
     config = {
         'general': {
             'enable_bucket': enable_bucket,
@@ -345,8 +348,7 @@ def generate_toml_config(output_path, enable_bucket=True, resolution=512, batch_
                 'batch_size': batch_size,
                 'subsets': [
                     {
-                        'image_dir': image_dir,
-                        'conditioning_data_dir': conditioning_data_dir,
+                        'image_dir': image_dir, 
                         'caption_extension': caption_extension,
                         'num_repeats': num_repeats,
                     },
@@ -355,8 +357,19 @@ def generate_toml_config(output_path, enable_bucket=True, resolution=512, batch_
         ],
     }
 
-    with open(output_path, "w", encoding="utf-8") as f:
-        toml.dump(config, f)
+    if conditioning_data_dir is not None:
+        config["datasets"][0]["subsets"][0]["conditioning_data_dir"] = conditioning_data_dir
+
+    if output_path.endswith(".toml"):
+        check_install()
+        import toml
+        with open(output_path, "w", encoding="utf-8") as f:
+            toml.dump(config, f)
+    elif output_path.endswith(".json"):
+        with open(output_path, "w", encoding="utf-8") as f:
+            json.dump(config, f, indent=4, ensure_ascii=False)
+    else:
+        raise Exception(f"不支持的文件格式: {output_path}")
 
 
 from PIL import Image
@@ -462,7 +475,7 @@ def run_hook_kohya_ss_run_file(workspace_dir, output_name, kohya_ss_tool_dir, tr
         screen_name = None
         if use_screen:
             screen_name = "mz_train_tools_core"
-            
+
         process_instance = HSubprocess(
             cmd_list, screen_name=screen_name)
         process_instance.wait()
@@ -517,7 +530,11 @@ def generate_kohya_ss_config(args):
         config["train_config"]["output_name"] = f"{workspace_name}_{train_config_template}_{datetime}"
 
         dataset_config_path = os.path.join(
-            workspace_dir, "dataset.toml")
+            workspace_dir, "dataset.json")
+        if not os.path.exists(dataset_config_path):
+            dataset_config_path = os.path.join(
+                workspace_dir, "dataset.toml")
+
         config["train_config"]["dataset_config"] = dataset_config_path
 
         config["train_config"]["max_train_steps"] = str(
@@ -978,3 +995,33 @@ def MZ_KohyaSS_KohakuBlueleaf_HYHiDSimpleT2I_call(args={}):
             model_type="HYDiT_unet_merge_lora")
 
     return (image,)
+
+
+def MZ_TrainToolsDebug_call(kwargs):
+    from pprint import pprint, pformat
+    object = kwargs["object"]
+    indent = kwargs["indent"]
+    depth = kwargs["depth"]
+    width = kwargs["width"]
+    compact = kwargs["compact"] == "enable"
+    sort_keys = kwargs["sort_keys"] == "enable"
+    underscore_numbers = kwargs["underscore_numbers"] == "enable"
+
+    index = kwargs["index"]
+    # 用点号分割
+    index = index.split(".")
+    for i in index:
+        if i == "":
+            continue
+        if isinstance(object, (list, tuple)):
+            object = object[int(i)]
+        elif isinstance(object, dict):
+            object = object.get(i)
+        elif hasattr(object, i):
+            object = getattr(object, i)
+        else:
+            object = object[i]
+
+    debug = pformat(object, indent=indent, depth=depth, width=width,
+                    compact=compact, sort_dicts=sort_keys, underscore_numbers=underscore_numbers)
+    return (debug,)

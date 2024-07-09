@@ -395,49 +395,54 @@ def LOG(log):
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--sys_path", type=str, default="")
-    parser.add_argument("--config", type=str, default="")
-    parser.add_argument("--train_func", type=str, default="")
-    parser.add_argument("--master_port", type=int, default=0)
-    args = parser.parse_args()
+    try:
+        parser = argparse.ArgumentParser()
+        parser.add_argument("--sys_path", type=str, default="")
+        parser.add_argument("--config", type=str, default="")
+        parser.add_argument("--train_func", type=str, default="")
+        parser.add_argument("--master_port", type=int, default=0)
+        args = parser.parse_args()
 
-    master_port = args.master_port
+        master_port = args.master_port
 
-    print(f"master_port = {master_port}")
+        print(f"master_port = {master_port}")
 
-    sys_path = args.sys_path
-    if sys_path != "":
-        sys.path.append(sys_path)
+        sys_path = args.sys_path
+        if sys_path != "":
+            sys.path.append(sys_path)
 
-    config_file = args.config
-    if config_file == "":
-        raise Exception("train_config is empty")
+        config_file = args.config
+        if config_file == "":
+            raise Exception("train_config is empty")
 
-    global_config = {}
-    with open(config_file, "r") as f:
-        _global_config = f.read()
-        global_config = json.loads(_global_config)
+        global_config = {}
+        with open(config_file, "r") as f:
+            _global_config = f.read()
+            global_config = json.loads(_global_config)
 
-    train_config = global_config.get("train_config")
-    print(f"""=======================train_config=======================
-{json.dumps(train_config, indent=4, ensure_ascii=False)}
-          """)
+        train_config = global_config.get("train_config")
+        print(f"""=======================train_config=======================
+    {json.dumps(train_config, indent=4, ensure_ascii=False)}
+            """)
 
-    other_config = global_config.get("other_config", {})
-    print(f"""=======================other_config=======================
-{json.dumps(other_config, indent=4, ensure_ascii=False)}
-          """)
+        other_config = global_config.get("other_config", {})
+        print(f"""=======================other_config=======================
+    {json.dumps(other_config, indent=4, ensure_ascii=False)}
+            """)
 
-    train_func = args.train_func
-    if train_func == "":
-        raise Exception("train_func is empty")
+        train_func = args.train_func
+        if train_func == "":
+            raise Exception("train_func is empty")
 
-    print(f"train_func = {train_func}")
+        print(f"train_func = {train_func}")
 
-    time.sleep(2)
-    LOG({
-        "type": "Read configuration completed!",
-    })
+        time.sleep(2)
+        LOG({
+            "type": "Read configuration completed!",
+        })
 
-    func_map[train_func]()
+        func_map[train_func]()
+    except Exception as e:
+        print(f"Exception: {e}")
+        if sys.platform == "win32":
+            input("Press Enter to continue...")

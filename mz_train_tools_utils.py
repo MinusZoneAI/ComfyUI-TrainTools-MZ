@@ -1166,9 +1166,11 @@ class HSubprocess:
 
     def stop(self):
         if self._mswindows:
-            if self.process_instance_pid is not None:
-                os.system(
-                    f'taskkill /F /FI "WINDOWTITLE eq hook_kohya_ss_run" /T')
+            print('taskkill /F /FI "WINDOWTITLE eq hook_kohya_ss_run" /T')
+            os.system(
+                f'taskkill /F /FI "WINDOWTITLE eq hook_kohya_ss_run" /T')
+            
+
         if self.process_instance is not None:
             if self.screen_name is not None:
                 subprocess.run(
