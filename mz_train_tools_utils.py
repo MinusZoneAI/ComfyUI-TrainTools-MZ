@@ -29,6 +29,90 @@ CACHE_POOL = {}
 
 
 class Utils:
+    def comfyui_fast_generate_picture(ckpt_name, prompt, output, width=512, height=512):
+        if os.path.exists(output):
+            return
+        import nodes
+        import node_helpers
+        model, clip, vae = nodes.CheckpointLoaderSimple().load_checkpoint(
+            ckpt_name=ckpt_name)
+        seed = 66
+        steps = 20
+        cfg = 7
+        sampler_name = "euler_ancestral"
+        scheduler = "normal"
+
+        # EmptyLatentImage
+        latent_image = nodes.EmptyLatentImage().generate(width, height)[0]
+
+        # CLIPTextEncode
+        positive = nodes.CLIPTextEncode().encode(clip, prompt)[0]
+        negative = nodes.CLIPTextEncode().encode(clip, "")[0]
+
+        # KSampler
+        latent = nodes.KSampler().sample(
+            model=model,
+            cfg=cfg, seed=seed, steps=steps, sampler_name=sampler_name, scheduler=scheduler, latent_image=latent_image, positive=positive, negative=negative)[0]
+
+        # VAEDecode
+        image = nodes.VAEDecode().decode(vae, latent)[0]
+
+        # SaveImage
+        Utils.tensor2pil(image).save(output)
+
+    def clone_repo(args={}):
+        git_accelerate_urls = {
+            "githubfast": "githubfast.com",
+            "521github": "521github.com",
+            "kkgithub": "kkgithub.com",
+        }
+        mz_dir = Utils.get_minus_zone_models_path()
+
+        branch_repoid = args.get("branch_repoid", "kohya-ss/sd-scripts")
+        branch_local_name = args.get("branch_local_name", "kohya_ss_lora")
+
+        git_url = f"https://github.com/{branch_repoid}"
+        source = args.get("source", "github")
+        kohya_ss_lora_dir = os.path.join(
+            mz_dir, "train_tools", branch_local_name)
+        if git_accelerate_urls.get(source, None) is not None:
+            git_url = f"https://{git_accelerate_urls[source]}/{branch_repoid}"
+        try:
+            if not os.path.exists(kohya_ss_lora_dir) or not os.path.exists(os.path.join(kohya_ss_lora_dir, ".git")):
+                subprocess.run(
+                    ["git", "clone", "--depth", "1", git_url, kohya_ss_lora_dir], check=True)
+
+            # 切换远程分支 git remote set-branches origin 'main'
+            branch = args.get("branch", "main")
+
+            # 查看本地分支是否一致
+            short_result = subprocess.run(
+                ["git", "rev-parse", "--abbrev-ref", "HEAD"], cwd=kohya_ss_lora_dir, stdout=subprocess.PIPE, check=True)
+            result = subprocess.run(
+                ["git", "rev-parse", "HEAD"], cwd=kohya_ss_lora_dir, stdout=subprocess.PIPE, check=True)
+
+            short_current_branch = short_result.stdout.decode().strip()
+            long_current_branch = result.stdout.decode().strip()
+            print(
+                f"当前分支(current branch): {long_current_branch}({short_current_branch})")
+            print(f"目标分支(target branch): {branch}")
+
+            if branch != long_current_branch and branch != short_current_branch:
+                subprocess.run(
+                    ["git", "remote", "set-branches", "origin", branch], cwd=kohya_ss_lora_dir, check=True)
+                subprocess.run(
+                    ["git", "fetch", "--depth", "1", "origin", branch], cwd=kohya_ss_lora_dir, check=True)
+
+                # 恢复所有文件
+                subprocess.run(
+                    ["git", "checkout", "."], cwd=kohya_ss_lora_dir, check=True)
+
+                subprocess.run(
+                    ["git", "checkout", branch], cwd=kohya_ss_lora_dir, check=True)
+
+        except Exception as e:
+            raise Exception(f"克隆kohya-ss/sd-scripts或者切换分支时出现异常,详细信息请查看控制台...")
+
     def Md5(str):
         return hashlib.md5(str.encode('utf-8')).hexdigest()
 
@@ -1143,33 +1227,20 @@ class HSubprocess:
     screen_name = None
     _mswindows = False
 
-    def __init__(self, args, screen_name=None):
+    def __init__(self, args):
         self._mswindows = (sys.platform == "win32")
         if self._mswindows:
             self.args = ["start", "/w"]
             self.args.extend(args)
             return
 
-        self.screen_name = screen_name
-        if screen_name is not None:
-            try:
-                subprocess.check_call(["screen", "-v"])
-            except Exception as e:
-                raise Exception("Please install screen first.")
-
-            screen_cmd = ["screen", "-R", screen_name, "-m", ]
-            screen_cmd.extend(args)
-
-            self.args = screen_cmd
-        else:
-            self.args = args
+        self.args = args
 
     def stop(self):
         if self._mswindows:
             print('taskkill /F /FI "WINDOWTITLE eq hook_kohya_ss_run" /T')
             os.system(
                 f'taskkill /F /FI "WINDOWTITLE eq hook_kohya_ss_run" /T')
-            
 
         if self.process_instance is not None:
             if self.screen_name is not None:
@@ -1193,6 +1264,15 @@ class HSubprocess:
             self.process_instance_pid = None
 
     def wait(self):
+        if self._mswindows:
+            self.wait_win()
+        else:
+            self.wait_linux()
+
+    def wait_linux(self):
+        subprocess.run(self.args, check=True)
+
+    def wait_win(self):
         with subprocess.Popen(
             self.args,
             stdin=subprocess.PIPE,

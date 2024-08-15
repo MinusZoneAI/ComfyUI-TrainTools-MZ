@@ -16,65 +16,11 @@ import folder_paths
 import nodes
 
 
-git_accelerate_urls = {
-    "githubfast": "githubfast.com",
-    "521github": "521github.com",
-    "kkgithub": "kkgithub.com",
-}
-
-
-def MZ_KohyaSSCloneRepo_call(args={}):
-    mz_dir = Utils.get_minus_zone_models_path()
-
-    branch_repoid = args.get("branch_repoid", "kohya-ss/sd-scripts")
-    branch_local_name = args.get("branch_local_name", "kohya_ss_lora")
-
-    git_url = f"https://github.com/{branch_repoid}"
-    source = args.get("source", "github")
-    kohya_ss_lora_dir = os.path.join(mz_dir, "train_tools", branch_local_name)
-    if git_accelerate_urls.get(source, None) is not None:
-        git_url = f"https://{git_accelerate_urls[source]}/{branch_repoid}"
-    try:
-        if not os.path.exists(kohya_ss_lora_dir) or not os.path.exists(os.path.join(kohya_ss_lora_dir, ".git")):
-            subprocess.run(
-                ["git", "clone", "--depth", "1", git_url, kohya_ss_lora_dir], check=True)
-
-        # 切换远程分支 git remote set-branches origin 'main'
-        branch = args.get("branch", "main")
-
-        # 查看本地分支是否一致
-        short_result = subprocess.run(
-            ["git", "rev-parse", "--abbrev-ref", "HEAD"], cwd=kohya_ss_lora_dir, stdout=subprocess.PIPE, check=True)
-        result = subprocess.run(
-            ["git", "rev-parse", "HEAD"], cwd=kohya_ss_lora_dir, stdout=subprocess.PIPE, check=True)
-
-        short_current_branch = short_result.stdout.decode().strip()
-        long_current_branch = result.stdout.decode().strip()
-        print(
-            f"当前分支(current branch): {long_current_branch}({short_current_branch})")
-        print(f"目标分支(target branch): {branch}")
-
-        if branch != long_current_branch and branch != short_current_branch:
-            subprocess.run(
-                ["git", "remote", "set-branches", "origin", branch], cwd=kohya_ss_lora_dir, check=True)
-            subprocess.run(
-                ["git", "fetch", "--depth", "1", "origin", branch], cwd=kohya_ss_lora_dir, check=True)
-
-            # 恢复所有文件
-            subprocess.run(
-                ["git", "checkout", "."], cwd=kohya_ss_lora_dir, check=True)
-
-            subprocess.run(
-                ["git", "checkout", branch], cwd=kohya_ss_lora_dir, check=True)
-
-    except Exception as e:
-        raise Exception(f"克隆kohya-ss/sd-scripts或者切换分支时出现异常,详细信息请查看控制台...")
-
 # 初始化工具仓库和工作区
 
 
 def MZ_KohyaSSInitWorkspace_call(args={}):
-    MZ_KohyaSSCloneRepo_call(args)
+    Utils.clone_repo(args)
 
     workspace_name = args.get("lora_name", None)
     workspace_name = workspace_name.strip()
@@ -97,7 +43,7 @@ def MZ_KohyaSSInitWorkspace_call(args={}):
     )
 
 
-def MZ_ImageSelecter_call(args={}):
+def MZ_KohyaSSDatasetConfig_call(args={}):
     images = args.get("images")
     pil_images = Utils.tensors2pil_list(images)
 
@@ -175,7 +121,9 @@ def MZ_ImageSelecter_call(args={}):
 
     dataset_config_extension = args.get("dataset_config_extension")
     generate_dataset_config(
-        os.path.join(workspace_dir, "dataset" + dataset_config_extension),
+        workspace_dir=workspace_dir,
+        output_path=os.path.join(
+            workspace_dir, "dataset" + dataset_config_extension),
         enable_bucket=args.get("enable_bucket") == "enable",
         resolution=args.get("resolution"),
         batch_size=args.get("batch_size"),
@@ -183,6 +131,7 @@ def MZ_ImageSelecter_call(args={}):
         conditioning_data_dir=conditioning_images_dir,
         caption_extension=caption_extension,
         num_repeats=args.get("num_repeats"),
+        is_reg=args.get("auto_reg") == "enable",
     )
     return (
         train_images_dir,
@@ -343,7 +292,7 @@ def check_install():
 import logging
 
 
-def generate_dataset_config(output_path, enable_bucket=True, resolution=512, batch_size=1, image_dir=None, conditioning_data_dir=None, caption_extension=".caption", num_repeats=10, ):
+def generate_dataset_config(workspace_dir, output_path, enable_bucket=True, resolution=512, batch_size=1, image_dir=None, conditioning_data_dir=None, caption_extension=".caption", num_repeats=10, is_reg=False):
 
     config = {
         'general': {
@@ -366,6 +315,13 @@ def generate_dataset_config(output_path, enable_bucket=True, resolution=512, bat
 
     if conditioning_data_dir is not None:
         config["datasets"][0]["subsets"][0]["conditioning_data_dir"] = conditioning_data_dir
+
+    if is_reg:
+        config["datasets"][0]["subsets"].append({
+            "is_reg": True,
+            "image_dir": os.path.join(workspace_dir, "reg_images"),
+            "num_repeats": 1,
+        })
 
     if output_path.endswith(".toml"):
         check_install()
@@ -479,12 +435,8 @@ def run_hook_kohya_ss_run_file(workspace_dir, output_name, kohya_ss_tool_dir, tr
 
         from .mz_train_tools_utils import HSubprocess
 
-        screen_name = None
-        if use_screen:
-            screen_name = "mz_train_tools_core"
-
         process_instance = HSubprocess(
-            cmd_list, screen_name=screen_name)
+            cmd_list)
         process_instance.wait()
 
         stop_server()
@@ -493,6 +445,24 @@ def run_hook_kohya_ss_run_file(workspace_dir, output_name, kohya_ss_tool_dir, tr
         stop_server()
         is_running = False
         raise Exception(f"训练失败!!! 具体报错信息请查看控制台...")
+
+
+def get_models_type(model_path):
+
+    from comfy.model_detection import model_config_from_unet, unet_prefix_from_state_dict, detect_unet_config
+    from comfy.supported_models import SDXL, SD15
+    import safetensors.torch
+    sd = safetensors.torch.load_file(model_path, device="cpu")
+    unet_prefix = unet_prefix_from_state_dict(sd)
+
+    model_type = model_config_from_unet(sd, unet_prefix)
+
+    if isinstance(model_type, SD15):
+        return "lora_sd1_5"
+    if isinstance(model_type, SDXL):
+        return "lora_sdxl"
+
+    raise Exception(f"不支持的模型类型: {model_type}")
 
 
 def generate_kohya_ss_config(args):
@@ -512,7 +482,11 @@ def generate_kohya_ss_config(args):
 
     workspace_config_file = os.path.join(workspace_dir, "config.json")
 
-    train_config_template = args.get("train_config_template", None)
+    ckpt_name = args.get("ckpt_name", "")
+    ckpt_path = folder_paths.get_full_path("checkpoints", ckpt_name)
+
+    train_config_template = get_models_type(ckpt_path)
+
     train_config_template_dir = os.path.join(
         os.path.dirname(__file__), "configs", "kohya_ss_lora")
     train_config_template_file = os.path.join(
@@ -525,7 +499,6 @@ def generate_kohya_ss_config(args):
         config["metadata"]["train_type"] = train_config_template
         ckpt_name = args.get("ckpt_name", "")
         if ckpt_name != "" and ckpt_name is not None:
-            ckpt_path = folder_paths.get_full_path("checkpoints", ckpt_name)
             config["train_config"]["pretrained_model_name_or_path"] = ckpt_path
 
         # output_dir
@@ -580,6 +553,41 @@ def generate_kohya_ss_config(args):
 
     # raise Exception(f"MZ_KohyaSSUseConfig_call: {args}")
     return config
+
+
+def generate_regularization_folder(ckpt_name, workspace_dir, caption_extension,
+                                   width=512, height=512):
+    train_images_dir = os.path.join(workspace_dir, "train_images")
+    saved_images_path = os.listdir(train_images_dir)
+
+    reg_dir = os.path.join(workspace_dir, "reg_images")
+
+    caption_files = []
+    caption_value = []
+    for i, filename in enumerate(saved_images_path):
+        if filename.lower().endswith(caption_extension):
+            caption_files.append(filename)
+            with open(os.path.join(train_images_dir, filename), "r", encoding="utf-8") as f:
+                caption_value.append(f.read())
+
+    if len(caption_files) == 0:
+        return
+    os.makedirs(reg_dir, exist_ok=True)
+    for filename, caption in zip(caption_files, caption_value):
+        if caption == "":
+            continue
+
+        with open(os.path.join(reg_dir, filename), "w", encoding="utf-8") as f:
+            f.write(caption)
+
+        image_filename = filename.replace(caption_extension, ".webp")
+        Utils.comfyui_fast_generate_picture(
+            ckpt_name=ckpt_name,
+            prompt=caption,
+            output=os.path.join(reg_dir, image_filename),
+            width=width,
+            height=height,
+        )
 
 
 def MZ_KohyaSSTrain_call(args={}):
@@ -678,8 +686,36 @@ def MZ_KohyaSSTrain_call(args={}):
     with open(workspace_config_file, "w", encoding="utf-8") as f:
         json.dump(config, f, indent=4, ensure_ascii=False)
 
+    dataset_config_file = config["train_config"]["dataset_config"]
+    with open(dataset_config_file, "r", encoding="utf-8") as f:
+        dataset_config = json.load(f)
+
+    if dataset_config is None:
+        raise Exception("dataset_config is None")
+
+    subsets_list = dataset_config.get("datasets")[0].get("subsets")
+    is_reg = True if len(subsets_list) == 2 and subsets_list[1].get(
+        "is_reg") else False
+    if is_reg:
+        caption_extension = subsets_list[0].get("caption_extension")
+        ckpt_name = args.get("ckpt_name")
+        resolution = dataset_config.get("datasets")[0].get("resolution")
+        if f"{resolution}".find("x") != -1:
+            resolutionsp = resolution.split("x")
+            width = int(resolutionsp[0])
+            height = int(resolutionsp[1])
+        elif f"{resolution}".find("*") != -1:
+            resolutionsp = resolution.split("*")
+            width = int(resolutionsp[0])
+            height = int(resolutionsp[1])
+        else:
+            width = height = int(resolution)
+
+        generate_regularization_folder(
+            ckpt_name, workspace_dir, caption_extension, width=width, height=height)
+
     # raise Exception(
-    #     f"config: {json.dumps(config, indent=4, ensure_ascii=False)}")
+    #     f"config: {json.dumps(dataset_config, indent=4, ensure_ascii=False)}")
 
     output_name = config["train_config"].get("output_name")
 
@@ -704,21 +740,6 @@ def MZ_KohyaSSTrain_call(args={}):
 
         run_hook_kohya_ss_run_file(
             workspace_dir, output_name, kohya_ss_tool_dir, "run_controlnet_sd1_5")
-    elif train_type == "lora_hunyuan1_2" or train_type == "lora_hunyuan1_1":
-        hunyuan_models_config = args.get(
-            "hunyuan_models_config", {})
-        from .mz_train_tools_core_HYDiT import check_model_auto_download
-
-        hunyuan_models_config["version"] = config.get(
-            "metadata").get("version")
-        config["other_config"]["hunyuan_models_config"] = check_model_auto_download(
-            hunyuan_models_config)
-
-        with open(workspace_config_file, "w", encoding="utf-8") as f:
-            json.dump(config, f, indent=4, ensure_ascii=False)
-
-        run_hook_kohya_ss_run_file(
-            workspace_dir, output_name, kohya_ss_tool_dir, "run_lora_hunyuan1_2")
     else:
         raise Exception(
             f"暂时不支持的训练类型: {train_type}")
@@ -726,309 +747,3 @@ def MZ_KohyaSSTrain_call(args={}):
     return (
         "训练完成",
     )
-
-
-def MZ_KohyaSS_KohakuBlueleaf_HYHiDSimpleT2I_call(args={}):
-    args = args.copy()
-    MZ_KohyaSSCloneRepo_call(args)
-    from .mz_train_tools_core_HYDiT import check_model_auto_download
-    args = check_model_auto_download(args)
-    import numpy as np
-    import torch
-    seed = args.get("seed", 0)
-    torch.manual_seed(seed)
-    from packaging import version
-    from transformers import AutoTokenizer, BertModel
-    from diffusers.models import AutoencoderKL
-    try:
-        from k_diffusion.external import DiscreteVDDPMDenoiser
-        from k_diffusion.sampling import sample_euler_ancestral, get_sigmas_exponential, sample_dpmpp_2m_sde
-    except ImportError:
-        subprocess.check_call(
-            [sys.executable, "-m", "pip", "install", "k-diffusion"])
-        from k_diffusion.external import DiscreteVDDPMDenoiser
-        from k_diffusion.sampling import sample_euler_ancestral, get_sigmas_exponential, sample_dpmpp_2m_sde
-
-    branch_local_name = args.get("branch_local_name")
-    kohya_ss_tool_dir = os.path.join(
-        Utils.get_minus_zone_models_path(), "train_tools", branch_local_name)
-    if kohya_ss_tool_dir not in sys.path:
-        sys.path.append(kohya_ss_tool_dir)
-    from library.hunyuan_models import DiT_g_2, MT5Embedder
-    from library.hunyuan_utils import get_cond, calc_rope
-    from networks.lora import create_network_from_weights
-
-    def load_scheduler_sigmas(beta_start=0.00085, beta_end=0.018, num_train_timesteps=1000):
-        betas = torch.linspace(beta_start**0.5, beta_end **
-                               0.5, num_train_timesteps, dtype=torch.float32) ** 2
-        alphas = 1.0 - betas
-        alphas_cumprod = torch.cumprod(alphas, dim=0)
-
-        sigmas = np.array(((1 - alphas_cumprod) / alphas_cumprod) ** 0.5)
-        sigmas = np.concatenate([sigmas[::-1], [0.0]]).astype(np.float32)
-        sigmas = torch.from_numpy(sigmas)
-        return alphas_cumprod, sigmas
-
-    version = args.get("version")
-    BETA_END = None
-    USE_EXTRA_COND = None
-    if version == "1.1":
-        BETA_END = 0.03
-        USE_EXTRA_COND = True
-    else:
-        BETA_END = 0.018
-        USE_EXTRA_COND = False
-
-    ATTN_MODE = "xformers"
-    CLIP_TOKENS = 75 * 2 + 2
-    dtype = DTYPE = torch.float16
-    device = DEVICE = "cuda"
-
-    image = None
-
-    with torch.inference_mode(True), torch.no_grad():
-        alphas, sigmas = load_scheduler_sigmas(beta_end=BETA_END)
-
-        tokenizer_path = args.get("tokenizer_path")
-        clip_tokenizer = AutoTokenizer.from_pretrained(
-            tokenizer_path, local_files_only=True)
-        clip_tokenizer.eos_token_id = 2
-
-        text_encoder_path = args.get("text_encoder_path")
-
-        clip_encoder = Utils.model_cache_get(
-            model_type="HYDiT_clip_encoder", model_path=text_encoder_path,)
-        if clip_encoder is None:
-            clip_encoder = (
-                BertModel.from_pretrained(
-                    text_encoder_path, local_files_only=True).to(device).to(dtype)
-            )
-            Utils.model_cache_set(
-                model_type="HYDiT_clip_encoder", model_path=text_encoder_path, model=clip_encoder)
-
-        t5_encoder_path = args.get("t5_encoder_path")
-        if t5_encoder_path != "none" and os.path.exists(t5_encoder_path):
-            mt5_embedder = Utils.model_cache_get(
-                model_type="HYDiT_mt5_embedder", model_path=t5_encoder_path,)
-            if mt5_embedder is None:
-                mt5_embedder = (
-                    MT5Embedder(t5_encoder_path, torch_dtype=dtype,
-                                max_length=256,).to(device).to(dtype)
-                )
-                Utils.model_cache_set(
-                    model_type="HYDiT_mt5_embedder", model_path=t5_encoder_path, model=mt5_embedder)
-        else:
-            from .mz_train_tools_utils import CustomizeMT5Embedder
-            mt5_embedder = (
-                CustomizeMT5Embedder(
-                    batch_size=1,
-                )
-                .to(device)
-                .to(dtype)
-            )
-
-        vae_ema_path = args.get("vae_ema_path")
-        vae = Utils.model_cache_get(
-            model_type="HYDiT_vae", model_path=vae_ema_path,)
-        if vae is None:
-            vae = (
-                AutoencoderKL.from_pretrained(
-                    vae_ema_path, local_files_only=True)
-                .to(device)
-                .to(dtype)
-            )
-            Utils.model_cache_set(
-                model_type="HYDiT_vae", model_path=vae_ema_path, model=vae)
-
-        unet_path = args.get("unet_path")
-        lora_path = args.get("lora_path")
-
-        denoiser_args = Utils.model_cache_get(
-            model_type="HYDiT_unet_merge_lora", model_path=f"{unet_path}_{lora_path}")
-
-        if denoiser_args is None:
-            denoiser, patch_size, head_dim = DiT_g_2(
-                input_size=(128, 128), use_extra_cond=USE_EXTRA_COND)
-            state_dict = torch.load(unet_path)
-            denoiser.load_state_dict(state_dict)
-            denoiser.to(device).to(dtype)
-            denoiser.eval()
-            denoiser.disable_fp32_silu()
-            denoiser.disable_fp32_layer_norm()
-            denoiser.set_attn_mode(ATTN_MODE)
-
-            if lora_path is not None and lora_path != "none":
-                if not os.path.exists(lora_path):
-                    raise Exception(f"lora_path: {lora_path} 不存在")
-                lora_net, state_dict = create_network_from_weights(
-                    multiplier=1.0,
-                    file=lora_path,
-                    vae=vae,
-                    text_encoder=[clip_encoder, mt5_embedder],
-                    unet=denoiser,
-                )
-                lora_net.apply_to(
-                    text_encoder=[clip_encoder, mt5_embedder],
-                    unet=denoiser,
-                )
-                lora_net.load_state_dict(state_dict)
-                lora_net = lora_net.to(DEVICE, dtype=DTYPE)
-
-            Utils.model_cache_set(
-                model_type="HYDiT_unet_merge_lora", model_path=f"{unet_path}_{lora_path}", model=(denoiser, patch_size, head_dim))
-        else:
-            denoiser, patch_size, head_dim = denoiser_args
-
-        vae.requires_grad_(False)
-        mt5_embedder.to(torch.float16)
-        prompt = args.get("prompt")
-        negative_prompt = args.get("negative_prompt")
-        with torch.autocast("cuda"):
-            clip_h, clip_m, mt5_h, mt5_m = get_cond(
-                prompt,
-                mt5_embedder,
-                clip_tokenizer,
-                clip_encoder,
-                # Should be same as original implementation with max_length_clip=77
-                # Support 75*n + 2
-                max_length_clip=CLIP_TOKENS,
-            )
-            neg_clip_h, neg_clip_m, neg_mt5_h, neg_mt5_m = get_cond(
-                negative_prompt,
-                mt5_embedder,
-                clip_tokenizer,
-                clip_encoder,
-                max_length_clip=CLIP_TOKENS,
-            )
-            clip_h = torch.concat([clip_h, neg_clip_h], dim=0)
-            clip_m = torch.concat([clip_m, neg_clip_m], dim=0)
-            mt5_h = torch.concat([mt5_h, neg_mt5_h], dim=0)
-            mt5_m = torch.concat([mt5_m, neg_mt5_m], dim=0)
-            torch.cuda.empty_cache()
-
-        style = torch.as_tensor([0] * 2, device=DEVICE)
-        W = args.get("width")
-        H = args.get("height")
-
-        size_cond = [H, W, H, W, 0, 0]
-        image_meta_size = torch.as_tensor([size_cond] * 2, device=DEVICE)
-        freqs_cis_img = calc_rope(H, W, patch_size, head_dim)
-
-        denoiser_wrapper = DiscreteVDDPMDenoiser(
-            # A quick patch for learn_sigma
-            lambda *args, **kwargs: denoiser(* \
-                                             args, **kwargs).chunk(2, dim=1)[0],
-            alphas,
-            False,
-        ).to(DEVICE)
-
-        CFG_SCALE = cfg = args.get("cfg", 5.0)
-        STEPS = steps = args.get("steps", 25)
-
-        def cfg_denoise_func(x, sigma):
-            cond, uncond = denoiser_wrapper(
-                x.repeat(2, 1, 1, 1),
-                sigma.repeat(2),
-                encoder_hidden_states=clip_h,
-                text_embedding_mask=clip_m,
-                encoder_hidden_states_t5=mt5_h,
-                text_embedding_mask_t5=mt5_m,
-                image_meta_size=image_meta_size,
-                style=style,
-                cos_cis_img=freqs_cis_img[0],
-                sin_cis_img=freqs_cis_img[1],
-            ).chunk(2, dim=0)
-            return uncond + (cond - uncond) * CFG_SCALE
-
-        sigmas = denoiser_wrapper.get_sigmas(STEPS).to(DEVICE)
-        sigmas = get_sigmas_exponential(
-            STEPS, denoiser_wrapper.sigma_min, denoiser_wrapper.sigma_max, DEVICE
-        )
-        x1 = torch.randn(1, 4, H // 8, W // 8,
-                         dtype=torch.float16, device=DEVICE)
-
-        pbar = Utils.progress_bar(STEPS, "sdxl")
-        preview = pbar.get_previewer()
-
-        def generate_callback(args):
-            try:
-                i = args.get("i")
-                latents = args.get("denoised")
-                # 判断是否存在decode_latent_to_preview_image
-                if hasattr(preview, "decode_latent_to_preview_image"):
-                    pil_img = preview.decode_latent_to_preview_image(
-                        None,
-                        latents,
-                    )[1]
-                else:
-                    pil_img = None
-                pbar.update(i, STEPS, pil_img)
-            except Exception as e:
-                print("generate_callback error:", e)
-                raise e
-
-        with torch.autocast("cuda"):
-            scheduler = args.get("scheduler")
-            if scheduler == "euler_ancestral":
-                sample = sample_euler_ancestral(
-                    cfg_denoise_func,
-                    x1 * sigmas[0],
-                    sigmas,
-                    callback=generate_callback,
-                )
-            else:
-                sample = sample_dpmpp_2m_sde(
-                    cfg_denoise_func,
-                    x1 * sigmas[0],
-                    sigmas,
-                    callback=generate_callback,
-                )
-            torch.cuda.empty_cache()
-            with torch.no_grad():
-                latent = sample / 0.13025
-                image = vae.decode(latent).sample
-                image = (image / 2 + 0.5).clamp(0, 1)
-                image = image.permute(0, 2, 3, 1)
-
-    keep_device = args.get("keep_device", "enable")
-    if keep_device == "disable":
-        Utils.model_cache_clean(
-            model_type="HYDiT_clip_encoder")
-        Utils.model_cache_clean(
-            model_type="HYDiT_mt5_embedder")
-        Utils.model_cache_clean(
-            model_type="HYDiT_vae")
-        Utils.model_cache_clean(
-            model_type="HYDiT_unet_merge_lora")
-
-    return (image,)
-
-
-def MZ_TrainToolsDebug_call(kwargs):
-    from pprint import pprint, pformat
-    object = kwargs["object"]
-    indent = kwargs["indent"]
-    depth = kwargs["depth"]
-    width = kwargs["width"]
-    compact = kwargs["compact"] == "enable"
-    sort_keys = kwargs["sort_keys"] == "enable"
-    underscore_numbers = kwargs["underscore_numbers"] == "enable"
-
-    index = kwargs["index"]
-    # 用点号分割
-    index = index.split(".")
-    for i in index:
-        if i == "":
-            continue
-        if isinstance(object, (list, tuple)):
-            object = object[int(i)]
-        elif isinstance(object, dict):
-            object = object.get(i)
-        elif hasattr(object, i):
-            object = getattr(object, i)
-        else:
-            object = object[i]
-
-    debug = pformat(object, indent=indent, depth=depth, width=width,
-                    compact=compact, sort_dicts=sort_keys, underscore_numbers=underscore_numbers)
-    return (debug,)
