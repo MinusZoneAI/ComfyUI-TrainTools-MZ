@@ -293,6 +293,11 @@ class MZ_KohyaSSTrain_oldversion:
 
     def start(self, **kwargs):
         importlib.reload(mz_train_tools_core)
+        train_config = kwargs.get("train_config", "empty").copy()
+        if isinstance(train_config, dict):
+            for i in train_config:
+                if i not in kwargs:
+                    kwargs[i] = train_config[i]
         return mz_train_tools_core.MZ_KohyaSSTrain_call(kwargs)
 
 
